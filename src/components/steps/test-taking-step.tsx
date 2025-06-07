@@ -8,8 +8,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { CheckCircle, ChevronLeft, ChevronRight } from "lucide-react";
+import { CheckCircle, ChevronLeft, ChevronRight, LayoutPanelLeft } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
 interface TestTakingStepProps {
@@ -22,6 +23,7 @@ export function TestTakingStep({ questions, onSubmitTest }: TestTakingStepProps)
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [progress, setProgress] = useState(0);
   const [viewedQuestions, setViewedQuestions] = useState<Set<string>>(new Set());
+  const [isMobilePaletteOpen, setIsMobilePaletteOpen] = useState(false);
 
   const currentQuestion = questions[currentQuestionIndex];
 
@@ -31,14 +33,14 @@ export function TestTakingStep({ questions, onSubmitTest }: TestTakingStepProps)
   }, [userAnswers, questions.length]);
 
   useEffect(() => {
-    // Mark the initial question as viewed
-    if (questions.length > 0 && !viewedQuestions.has(questions[0].id)) {
+    // Mark the initial question as viewed when component mounts or questions change
+    if (questions.length > 0) {
        setViewedQuestions(prev => new Set(prev).add(questions[0].id));
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [questions]); // Only on initial questions load
+  }, [questions]);
 
   useEffect(() => {
+    // Mark current question as viewed when navigated to
     if (currentQuestion) {
       setViewedQuestions(prev => {
         if (!prev.has(currentQuestion.id)) {
@@ -57,6 +59,7 @@ export function TestTakingStep({ questions, onSubmitTest }: TestTakingStepProps)
     if (index >= 0 && index < questions.length) {
       setCurrentQuestionIndex(index);
       // The useEffect for currentQuestion will handle adding to viewedQuestions
+      setIsMobilePaletteOpen(false); // Close mobile palette on navigation
     }
   }, [questions.length]);
 
@@ -80,11 +83,28 @@ export function TestTakingStep({ questions, onSubmitTest }: TestTakingStepProps)
     return cn(
       "h-10 w-10 flex items-center justify-center p-1 text-xs sm:text-sm rounded-md border transition-all focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
       isActive && "ring-2 ring-primary shadow-lg scale-105 z-10",
-      !isAnswered && !isViewed && "bg-card hover:bg-accent/80 text-card-foreground", // Unseen
       isAnswered && "bg-green-100 dark:bg-green-700/30 border-green-500/70 text-green-700 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-700/40", // Answered (Green)
-      isViewed && !isAnswered && "bg-red-100 dark:bg-red-700/30 border-red-500/70 text-red-700 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-700/40" // Viewed but unanswered (Red)
+      isViewed && !isAnswered && "bg-red-100 dark:bg-red-700/30 border-red-500/70 text-red-700 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-700/40", // Viewed but unanswered (Red)
+      !isViewed && !isAnswered && "bg-card hover:bg-accent/50 text-card-foreground" // Unseen/Unattempted (Neutral)
     );
   };
+
+  const renderPaletteGrid = () => (
+    <div className="grid grid-cols-5 gap-2">
+      {questions.map((q, index) => (
+        <Button
+          key={q.id}
+          onClick={() => navigateToQuestion(index)}
+          className={getPaletteButtonClasses(q.id, index)}
+          title={`Go to Question ${index + 1}`}
+          variant="outline"
+          size="icon"
+        >
+          {index + 1}
+        </Button>
+      ))}
+    </div>
+  );
 
   return (
     <Card className="w-full max-w-4xl shadow-xl">
@@ -140,38 +160,49 @@ export function TestTakingStep({ questions, onSubmitTest }: TestTakingStepProps)
            )}
         </div>
 
-        {/* Question Palette Area */}
-        <div className="w-full md:w-[15rem] lg:w-[18rem] order-1 md:order-2 md:border-l md:pl-4 lg:pl-6 flex flex-col">
+        {/* Question Palette Area (Desktop) */}
+        <div className="hidden md:flex w-full md:w-[15rem] lg:w-[18rem] order-1 md:order-2 md:border-l md:pl-4 lg:pl-6 flex-col">
           <h4 className="text-md font-semibold mb-3 font-headline text-center">Question Palette</h4>
           <ScrollArea className="flex-grow mt-1 pr-1 min-h-[150px] md:min-h-0">
-            <div className="grid grid-cols-5 gap-2">
-              {questions.map((q, index) => (
-                <Button
-                  key={q.id}
-                  onClick={() => navigateToQuestion(index)}
-                  className={getPaletteButtonClasses(q.id, index)}
-                  title={`Go to Question ${index + 1}`}
-                >
-                  {index + 1}
-                </Button>
-              ))}
-            </div>
+            {renderPaletteGrid()}
           </ScrollArea>
         </div>
       </CardContent>
-      <CardFooter className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-6">
-        <div className="flex gap-2 w-full sm:w-auto">
-        <Button onClick={goToPreviousQuestion} disabled={currentQuestionIndex === 0 || questions.length === 0} variant="outline" className="flex-1 sm:flex-none">
-          <ChevronLeft className="mr-2 h-4 w-4" /> Previous
-        </Button>
-        <Button onClick={goToNextQuestion} disabled={currentQuestionIndex === questions.length - 1 || questions.length === 0} variant="outline" className="flex-1 sm:flex-none">
-          Next <ChevronRight className="ml-2 h-4 w-4" />
-        </Button>
+      <CardFooter className="flex flex-col items-center gap-4 pt-6">
+        {/* Mobile Palette Trigger */}
+        <div className="md:hidden w-full flex justify-center mb-2 sm:mb-0">
+          <Sheet open={isMobilePaletteOpen} onOpenChange={setIsMobilePaletteOpen}>
+            <SheetTrigger asChild>
+              <Button variant="outline" className="w-full sm:w-auto"> <LayoutPanelLeft className="mr-2 h-4 w-4" /> View Palette</Button>
+            </SheetTrigger>
+            <SheetContent side="bottom" className="h-[60vh] flex flex-col p-0">
+              <SheetHeader className="p-4 border-b">
+                <SheetTitle className="text-center">Question Palette</SheetTitle>
+              </SheetHeader>
+              <ScrollArea className="flex-grow">
+                <div className="p-4">
+                 {renderPaletteGrid()}
+                </div>
+              </ScrollArea>
+            </SheetContent>
+          </Sheet>
         </div>
-        <Button onClick={handleSubmit} className="w-full sm:w-auto text-lg py-3" disabled={Object.keys(userAnswers).length !== questions.length || questions.length === 0}>
-          <CheckCircle className="mr-2 h-5 w-5" />
-          Submit Test
-        </Button>
+
+        {/* Navigation Buttons */}
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-2 w-full">
+            <div className="flex gap-2 w-full sm:w-auto">
+                <Button onClick={goToPreviousQuestion} disabled={currentQuestionIndex === 0 || questions.length === 0} variant="outline" className="flex-1 sm:flex-none">
+                <ChevronLeft className="mr-2 h-4 w-4" /> Previous
+                </Button>
+                <Button onClick={goToNextQuestion} disabled={currentQuestionIndex === questions.length - 1 || questions.length === 0} variant="outline" className="flex-1 sm:flex-none">
+                Next <ChevronRight className="ml-2 h-4 w-4" />
+                </Button>
+            </div>
+            <Button onClick={handleSubmit} className="w-full sm:w-auto text-lg py-3 sm:py-2" disabled={Object.keys(userAnswers).length !== questions.length || questions.length === 0}>
+                <CheckCircle className="mr-2 h-5 w-5" />
+                Submit Test
+            </Button>
+        </div>
       </CardFooter>
     </Card>
   );
