@@ -2,7 +2,7 @@
 "use client";
 
 import type { QuestionType, ScoreSummary, TestResultItem } from "@/types";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react"; // Added useEffect for potential future use if needed
 import { Header } from "@/components/layout/header";
 import { FileUploadStep } from "@/components/steps/file-upload-step";
 import { QuestionPreviewStep } from "@/components/steps/question-preview-step";
@@ -39,12 +39,22 @@ export default function TestGeniusPage() {
     setError(null);
   };
 
-  const processExtractedQuestions = (aiResult: ExtractQuestionsOutput) => {
-    if (!aiResult.questions || aiResult.questions.length === 0) {
-      setError("AI could not extract any questions based on the current settings. Please try a different file or ensure the content has clear multiple-choice questions in the selected language.");
-      setIsLoading(false);
+  const processExtractedQuestions = useCallback((aiResult: ExtractQuestionsOutput) => {
+    if (!aiResult || typeof aiResult !== 'object' || !aiResult.questions || !Array.isArray(aiResult.questions)) {
+      console.error("Invalid aiResult structure in processExtractedQuestions:", aiResult);
+      setError("Received an unexpected data structure from AI. Cannot process questions.");
+      // setIsLoading(false) is handled by the caller's finally block
       return;
     }
+
+    if (aiResult.questions.length === 0) {
+      setError("AI could not extract any questions based on the current settings. Please try a different file or ensure the content has clear multiple-choice questions in the selected language.");
+      setQuestions([]); // Ensure questions are cleared if none are found
+      setCurrentStep('previewing_questions'); // Still go to preview to show "no questions"
+      return;
+    }
+    
+    setError(null); // Clear previous errors if questions are found
     const formattedQuestions: QuestionType[] = aiResult.questions.map((q) => ({
       id: crypto.randomUUID(),
       questionText: q.question,
@@ -53,15 +63,19 @@ export default function TestGeniusPage() {
     }));
     setQuestions(formattedQuestions);
     setCurrentStep('previewing_questions');
-  };
+  }, [setQuestions, setCurrentStep, setError]);
 
   const handleFileProcessed = useCallback(async (text: string) => {
     setExtractedText(text);
     setError(null);
     setIsLoading(true);
     try {
-      // First call without language preference
       const initialAiResult: ExtractQuestionsOutput = await extractQuestions({ text });
+
+      if (!initialAiResult || typeof initialAiResult !== 'object') {
+        console.error("AI extraction returned invalid data structure:", initialAiResult);
+        throw new Error("AI service returned an unexpected data format.");
+      }
 
       if (initialAiResult.requiresLanguageChoice) {
         setCurrentStep('language_selection');
@@ -75,7 +89,7 @@ export default function TestGeniusPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [toast]);
+  }, [toast, processExtractedQuestions, setExtractedText, setCurrentStep, setError, setIsLoading]);
 
   const handleLanguageSelected = useCallback(async (language: 'en' | 'hi') => {
     if (!extractedText) {
@@ -87,6 +101,12 @@ export default function TestGeniusPage() {
     setIsLoading(true);
     try {
       const aiResult: ExtractQuestionsOutput = await extractQuestions({ text: extractedText, preferredLanguage: language });
+      
+      if (!aiResult || typeof aiResult !== 'object') {
+        console.error("AI extraction with language preference returned invalid data structure:", aiResult);
+        throw new Error("AI service returned an unexpected data format after language selection.");
+      }
+      
       processExtractedQuestions(aiResult);
     } catch (e) {
       console.error("AI extraction error (with language preference):", e);
@@ -95,18 +115,18 @@ export default function TestGeniusPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [extractedText, toast]);
+  }, [extractedText, toast, processExtractedQuestions, setCurrentStep, setError, setIsLoading]);
 
   const handleStartTest = useCallback(() => {
     setCurrentStep('taking_test');
     setError(null);
-  }, []);
+  }, [setCurrentStep, setError]);
 
   const handleSubmitTest = useCallback((answers: Record<string, string>) => {
     setUserTestAnswers(answers);
     setCurrentStep('awaiting_scoring_choice');
     setError(null);
-  }, []);
+  }, [setUserTestAnswers, setCurrentStep, setError]);
 
   const handleScoreWithAI = useCallback(async () => {
     setIsLoading(true);
@@ -152,7 +172,7 @@ export default function TestGeniusPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [questions, userTestAnswers, toast]);
+  }, [questions, userTestAnswers, toast, setIsLoading, setError, setQuestions, setScoreDetails, setCurrentStep]);
 
   const handleUploadKeyAndScore = useCallback((keyAnswers: string[]) => {
     setIsLoading(true);
@@ -197,20 +217,19 @@ export default function TestGeniusPage() {
     });
     setCurrentStep('results');
     setIsLoading(false);
-  }, [questions, userTestAnswers, toast]);
+  }, [questions, userTestAnswers, toast, setIsLoading, setError, setQuestions, setScoreDetails, setCurrentStep]);
 
 
   const renderStepContent = () => {
     if (isLoading) {
       let message = "Processing...";
       if (currentStep === 'upload' && !extractedText) message = "Processing file...";
-      if (currentStep === 'upload' && extractedText && questions.length === 0) message = "Extracting questions with AI...";
-      if (currentStep === 'language_selection') message = "Extracting questions in selected language...";
+      if ((currentStep === 'upload' || currentStep === 'language_selection') && extractedText && questions.length === 0 && !error) message = "Extracting questions with AI...";
       if (currentStep === 'awaiting_scoring_choice') message = "Scoring test with AI...";
       return <LoadingSpinner message={message} />;
     }
 
-    if (error) {
+    if (error && (currentStep === 'upload' || currentStep === 'language_selection' || currentStep === 'previewing_questions' || currentStep === 'awaiting_scoring_choice' )) {
       return (
         <Alert variant="destructive" className="w-full max-w-xl mx-auto">
           <AlertTriangle className="h-4 w-4" />
@@ -219,6 +238,19 @@ export default function TestGeniusPage() {
         </Alert>
       );
     }
+    
+    // Specific error display for previewing_questions if error exists but questions also exist (e.g. partial error)
+    // Or if error is specifically "AI could not extract..."
+    if (error && currentStep === 'previewing_questions' && questions.length === 0) {
+       return (
+        <Alert variant="destructive" className="w-full max-w-xl mx-auto">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Error Extracting Questions</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      );
+    }
+
 
     switch (currentStep) {
       case 'upload':
@@ -226,12 +258,22 @@ export default function TestGeniusPage() {
       case 'language_selection':
         return <LanguageSelectionStep onSelectLanguage={handleLanguageSelected} />;
       case 'previewing_questions':
+        // If questions are empty but no explicit error state from above, QuestionPreviewStep handles "No Questions Extracted"
         return <QuestionPreviewStep questions={questions} onStartTest={handleStartTest} />;
       case 'taking_test':
         return <TestTakingStep questions={questions} onSubmitTest={handleSubmitTest} />;
       case 'awaiting_scoring_choice':
         return <ScoringOptionsStep onScoreWithAI={handleScoreWithAI} onUploadKeyAndScore={handleUploadKeyAndScore} setIsLoadingGlobally={setIsLoading} />;
       case 'results':
+        if (error && !scoreDetails) { // Error during scoring, results not available
+             return (
+                <Alert variant="destructive" className="w-full max-w-xl mx-auto">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Scoring Error</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+                </Alert>
+            );
+        }
         if (!scoreDetails) return <p>Error: Score details not available.</p>;
         return <ResultsStep scoreSummary={scoreDetails} onRetakeTest={resetState} />;
       default:
@@ -251,3 +293,4 @@ export default function TestGeniusPage() {
     </div>
   );
 }
+
