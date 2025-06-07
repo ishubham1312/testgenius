@@ -92,7 +92,12 @@ export function ResultsStep({ scoreSummary, testConfiguration, onRetakeTest }: R
         </ScrollArea>
       </CardContent>
       <CardFooter>
-        <Button onClick={onRetakeTest} className="w-full text-lg py-6" variant="outline">
+        <Button 
+          onClick={onRetakeTest} 
+          size="lg"
+          className="w-full text-base" 
+          variant="outline"
+        >
           <RotateCcw className="mr-2 h-5 w-5" />
           Take Another Test
         </Button>
@@ -100,4 +105,3 @@ export function ResultsStep({ scoreSummary, testConfiguration, onRetakeTest }: R
     </Card>
   );
 }
-

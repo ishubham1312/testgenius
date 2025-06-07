@@ -1,3 +1,4 @@
+
 "use client";
 
 import type React from "react";
@@ -32,7 +33,7 @@ export function ScoringOptionsStep({ onScoreWithAI, onUploadKeyAndScore, setIsLo
           variant: "destructive",
         });
         setKeyFile(null);
-        event.target.value = ""; // Reset file input
+        event.target.value = ""; 
       }
     }
   };
@@ -59,7 +60,7 @@ export function ScoringOptionsStep({ onScoreWithAI, onUploadKeyAndScore, setIsLo
         if (!Array.isArray(answers) || !answers.every(ans => typeof ans === 'string')) {
           throw new Error("JSON key must be an array of strings.");
         }
-      } else { // text/plain
+      } else { 
         answers = fileContent.split('\n').map(line => line.trim()).filter(line => line.length > 0);
       }
       
@@ -72,10 +73,9 @@ export function ScoringOptionsStep({ onScoreWithAI, onUploadKeyAndScore, setIsLo
         description: (error as Error).message || "Please ensure the file is correctly formatted.",
         variant: "destructive",
       });
-      setIsLoadingGlobally(false); // Ensure loading is stopped on error
+      setIsLoadingGlobally(false); 
     } finally {
       setIsProcessingKey(false);
-      // setIsLoadingGlobally(false) will be handled by the parent component after onUploadKeyAndScore completes.
     }
   };
   
@@ -93,7 +93,11 @@ export function ScoringOptionsStep({ onScoreWithAI, onUploadKeyAndScore, setIsLo
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <Button onClick={handleScoreWithAIClick} className="w-full text-lg py-6" variant="default">
+        <Button 
+          onClick={handleScoreWithAIClick} 
+          size="lg"
+          className="w-full text-base bg-gradient-to-r from-primary to-accent text-primary-foreground hover:opacity-90 transition-opacity"
+        >
           <Bot className="mr-2 h-5 w-5" />
           Score with AI
         </Button>
@@ -117,7 +121,7 @@ export function ScoringOptionsStep({ onScoreWithAI, onUploadKeyAndScore, setIsLo
               type="file"
               accept=".txt,.json"
               onChange={handleKeyFileChange}
-              className="cursor-pointer file:text-primary file:font-semibold hover:file:bg-primary/10"
+              className="cursor-pointer file:text-primary file:font-semibold hover:file:bg-primary/10" // text-sm is default
               disabled={isProcessingKey}
             />
           </div>
@@ -127,7 +131,13 @@ export function ScoringOptionsStep({ onScoreWithAI, onUploadKeyAndScore, setIsLo
               </p>
             )}
         </div>
-        <Button onClick={handleUploadKey} className="w-full text-lg py-6" variant="outline" disabled={!keyFile || isProcessingKey}>
+        <Button 
+          onClick={handleUploadKey} 
+          size="lg"
+          className="w-full text-base" // No gradient for this secondary action by default
+          variant="outline" 
+          disabled={!keyFile || isProcessingKey}
+        >
            {isProcessingKey ? (
               <Loader2 className="mr-2 h-5 w-5 animate-spin" />
             ) : (

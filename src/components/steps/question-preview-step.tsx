@@ -61,7 +61,11 @@ export function QuestionPreviewStep({ questions, onProceedToConfiguration }: Que
         </ScrollArea>
       </CardContent>
       <CardFooter>
-        <Button onClick={onProceedToConfiguration} className="w-full text-lg py-6">
+        <Button 
+          onClick={onProceedToConfiguration} 
+          size="lg"
+          className="w-full text-base bg-gradient-to-r from-primary to-accent text-primary-foreground hover:opacity-90 transition-opacity"
+        >
           <Settings2 className="mr-2 h-5 w-5" />
           Configure & Start Test
         </Button>

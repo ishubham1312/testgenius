@@ -21,20 +21,21 @@ export function GenerationMethodStep({ onSelectMethod }: GenerationMethodStepPro
       <CardContent className="space-y-4">
         <Button 
           onClick={() => onSelectMethod('extract_from_document')} 
-          className="w-full text-lg py-6 flex items-center justify-center gap-3"
-          variant="default"
+          size="lg"
+          className="w-full text-base bg-gradient-to-r from-primary to-accent text-primary-foreground hover:opacity-90 transition-opacity"
         >
-          <FileText className="h-6 w-6" />
-          Extract Questions from Document
+          <FileText className="mr-2 h-5 w-5" />
+          Extract from Document
         </Button>
         
         <Button 
           onClick={() => onSelectMethod('generate_from_syllabus')} 
-          className="w-full text-lg py-6 flex items-center justify-center gap-3"
-          variant="secondary"
+          size="lg"
+          variant="secondary" // Keeps the secondary look if gradient not desired, or remove variant for gradient
+          className="w-full text-base bg-gradient-to-r from-primary to-accent text-primary-foreground hover:opacity-90 transition-opacity"
         >
-          <BookOpenCheck className="h-6 w-6" />
-          Generate Questions from Syllabus
+          <BookOpenCheck className="mr-2 h-5 w-5" />
+          Generate from Syllabus
         </Button>
 
         <div className="relative">
@@ -50,11 +51,12 @@ export function GenerationMethodStep({ onSelectMethod }: GenerationMethodStepPro
 
         <Button 
           onClick={() => onSelectMethod('generate_from_topic')} 
-          className="w-full text-lg py-6 flex items-center justify-center gap-3"
-          variant="outline"
+          size="lg"
+          variant="outline" // Keeps the outline look if gradient not desired, or remove variant for gradient
+          className="w-full text-base bg-gradient-to-r from-primary to-accent text-primary-foreground hover:opacity-90 transition-opacity"
         >
-          <Brain className="h-6 w-6" />
-          Generate Questions from Topic(s)
+          <Brain className="mr-2 h-5 w-5" />
+          Generate from Topic(s)
         </Button>
       </CardContent>
     </Card>

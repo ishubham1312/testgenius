@@ -33,7 +33,7 @@ export function TestTakingStep({ questions, testConfiguration, onSubmitTest }: T
   const [showTimeUpDialog, setShowTimeUpDialog] = useState(false);
 
   const currentQuestion = questions[currentQuestionIndex];
-  const canSubmitTest = questions.length > 0; // Submit button is always enabled if there are questions
+  const canSubmitTest = questions.length > 0;
 
   const handleSubmit = useCallback(() => {
     setIsMobilePaletteOpen(false); 
@@ -128,7 +128,7 @@ export function TestTakingStep({ questions, testConfiguration, onSubmitTest }: T
   };
 
   const renderPaletteGrid = () => (
-    <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
+    <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 p-1">
       {questions.map((q, index) => (
         <Button
           key={q.id}
@@ -150,7 +150,7 @@ export function TestTakingStep({ questions, testConfiguration, onSubmitTest }: T
     <Card className="w-full max-w-4xl shadow-xl">
       <CardHeader>
         <div className="flex justify-between items-center">
-          <CardTitle className="font-headline text-3xl text-center">Mock Test</CardTitle>
+          <CardTitle className="font-headline text-3xl">Mock Test</CardTitle> {/* Removed text-center */}
           {timeRemaining !== null && (
             <div className={cn(
               "flex items-center gap-2 p-2 rounded-md text-lg font-semibold",
@@ -161,7 +161,7 @@ export function TestTakingStep({ questions, testConfiguration, onSubmitTest }: T
             </div>
           )}
         </div>
-        <CardDescription className="text-center">
+        <CardDescription className="text-center"> {/* Kept this centered */}
           Answer the questions to the best of your ability.
           {testConfiguration.negativeMarkingValue !== null && (
             <span className="block text-destructive text-sm font-medium mt-1">
@@ -176,7 +176,7 @@ export function TestTakingStep({ questions, testConfiguration, onSubmitTest }: T
           </p>
         </div>
       </CardHeader>
-      <CardContent className="min-h-[450px] flex flex-col md:flex-row gap-6 p-4 sm:p-6">
+      <CardContent className="min-h-[450px] flex flex-col md:flex-row gap-4 md:gap-6 p-4 sm:p-6">
         <div className="flex-1 order-2 md:order-1">
           {currentQuestion && (
             <div key={currentQuestion.id} className="space-y-6 h-full flex flex-col">
@@ -215,7 +215,7 @@ export function TestTakingStep({ questions, testConfiguration, onSubmitTest }: T
            )}
         </div>
 
-        <div className="hidden md:flex md:flex-shrink-0 md:w-[16rem] order-1 md:order-2 md:border-l md:pl-4 flex-col">
+        <div className="hidden md:flex md:flex-col md:flex-shrink-0 md:w-[16rem] order-1 md:order-2 md:border-l md:pl-4">
           <h4 className="text-md font-semibold mb-3 font-headline text-center">Question Palette</h4>
           <ScrollArea className="flex-grow mt-1 pr-1 min-h-[150px] md:min-h-0">
             {renderPaletteGrid()}
@@ -226,7 +226,7 @@ export function TestTakingStep({ questions, testConfiguration, onSubmitTest }: T
         <div className="md:hidden w-full flex justify-center mb-2 sm:mb-0">
           <Sheet open={isMobilePaletteOpen} onOpenChange={setIsMobilePaletteOpen}>
             <SheetTrigger asChild>
-              <Button variant="outline" className="w-full sm:w-auto"> <LayoutPanelLeft className="mr-2 h-4 w-4" /> Question Palette</Button>
+              <Button variant="outline" className="w-full sm:w-auto text-base"> <LayoutPanelLeft className="mr-2 h-4 w-4" /> Question Palette</Button>
             </SheetTrigger>
             <SheetContent side="bottom" className="h-[70vh] flex flex-col p-0">
               <SheetHeader className="p-4 border-b">
@@ -240,7 +240,8 @@ export function TestTakingStep({ questions, testConfiguration, onSubmitTest }: T
               <SheetFooter className="p-4 border-t">
                 <Button 
                   onClick={handleSubmit} 
-                  className="w-full" 
+                  size="lg"
+                  className="w-full text-base bg-gradient-to-r from-primary to-accent text-primary-foreground hover:opacity-90 transition-opacity"
                   disabled={!canSubmitTest}
                 >
                   <CheckCircle className="mr-2 h-5 w-5" />
@@ -253,14 +254,19 @@ export function TestTakingStep({ questions, testConfiguration, onSubmitTest }: T
 
         <div className="flex flex-col sm:flex-row justify-between items-center gap-2 w-full">
             <div className="flex gap-2 w-full sm:w-auto">
-                <Button onClick={goToPreviousQuestion} disabled={currentQuestionIndex === 0 || questions.length === 0} variant="outline" className="flex-1 sm:flex-none">
+                <Button onClick={goToPreviousQuestion} disabled={currentQuestionIndex === 0 || questions.length === 0} variant="outline" className="flex-1 sm:flex-none text-base py-2 px-4">
                 <ChevronLeft className="mr-2 h-4 w-4" /> Previous
                 </Button>
-                <Button onClick={goToNextQuestion} disabled={currentQuestionIndex === questions.length - 1 || questions.length === 0} variant="outline" className="flex-1 sm:flex-none">
+                <Button onClick={goToNextQuestion} disabled={currentQuestionIndex === questions.length - 1 || questions.length === 0} variant="outline" className="flex-1 sm:flex-none text-base py-2 px-4">
                 Next <ChevronRight className="ml-2 h-4 w-4" />
                 </Button>
             </div>
-            <Button onClick={handleSubmit} className="w-full sm:w-auto text-lg py-3 sm:py-2" disabled={!canSubmitTest}>
+            <Button 
+              onClick={handleSubmit} 
+              size="lg" 
+              className="w-full sm:w-auto text-base bg-gradient-to-r from-primary to-accent text-primary-foreground hover:opacity-90 transition-opacity" 
+              disabled={!canSubmitTest}
+            >
                 <CheckCircle className="mr-2 h-5 w-5" />
                 Submit Test
             </Button>
@@ -283,4 +289,3 @@ export function TestTakingStep({ questions, testConfiguration, onSubmitTest }: T
     </>
   );
 }
-

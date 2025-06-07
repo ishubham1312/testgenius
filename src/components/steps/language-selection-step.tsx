@@ -23,15 +23,16 @@ export function LanguageSelectionStep({ onSelectLanguage }: LanguageSelectionSte
       <CardContent className="space-y-4">
         <Button 
           onClick={() => onSelectLanguage('en')} 
-          className="w-full text-lg py-6"
-          variant="default"
+          size="lg"
+          className="w-full text-base bg-gradient-to-r from-primary to-accent text-primary-foreground hover:opacity-90 transition-opacity"
         >
           English
         </Button>
         <Button 
           onClick={() => onSelectLanguage('hi')} 
-          className="w-full text-lg py-6"
+          size="lg"
           variant="outline"
+          className="w-full text-base" 
         >
           हिंदी (Hindi)
         </Button>

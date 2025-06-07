@@ -3,11 +3,10 @@
 
 import { useState } from 'react';
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from '@/components/ui/textarea';
-import { Brain } from 'lucide-react';
+import { Brain, ArrowRight } from 'lucide-react';
 
 interface TopicInputStepProps {
   onSubmitTopic: (topic: string) => void;
@@ -45,10 +44,16 @@ export function TopicInputStep({ onSubmitTopic }: TopicInputStepProps) {
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
               required
-              className="min-h-[100px] text-base"
+              className="min-h-[100px]" // text-sm is now default from ui/textarea
             />
           </div>
-          <Button type="submit" className="w-full text-lg py-6" disabled={!topic.trim()}>
+          <Button 
+            type="submit" 
+            size="lg"
+            className="w-full text-base bg-gradient-to-r from-primary to-accent text-primary-foreground hover:opacity-90 transition-opacity" 
+            disabled={!topic.trim()}
+          >
+            <ArrowRight className="mr-2 h-5 w-5"/>
             Proceed to Options
           </Button>
         </form>

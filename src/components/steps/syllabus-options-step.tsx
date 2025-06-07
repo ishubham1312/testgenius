@@ -13,7 +13,6 @@ import { Settings, Bot } from "lucide-react";
 export interface SyllabusGenerationOptions {
   numQuestions: number;
   difficultyLevel: 'easy' | 'medium' | 'hard';
-  // preferredLanguage?: 'en' | 'hi'; // Optional: if we want to ask for language here
 }
 
 interface SyllabusOptionsStepProps {
@@ -77,14 +76,11 @@ export function SyllabusOptionsStep({ onSubmitOptions }: SyllabusOptionsStepProp
             </RadioGroup>
           </div>
           
-          {/* Optional: Language Preference - can be added if needed
-          <div className="space-y-3">
-            <Label className="text-base">Preferred Language for Questions</Label>
-            <RadioGroup ... > ... </RadioGroup>
-          </div>
-          */}
-
-          <Button type="submit" className="w-full text-lg py-6">
+          <Button 
+            type="submit" 
+            size="lg"
+            className="w-full text-base bg-gradient-to-r from-primary to-accent text-primary-foreground hover:opacity-90 transition-opacity"
+          >
             <Bot className="mr-2 h-5 w-5" />
             Generate Questions
           </Button>

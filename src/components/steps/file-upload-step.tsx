@@ -67,12 +67,9 @@ export function FileUploadStep({ onFileProcessed, setIsLoadingGlobally }: FileUp
         description: (error as Error).message || "An unexpected error occurred.",
         variant: "destructive",
       });
-      // setIsLoadingGlobally(false) will be handled by parent if onFileProcessed doesn't transition.
-      // if an error occurs here before onFileProcessed is called, then we should set it.
        setIsLoadingGlobally(false);
     } finally {
       setIsProcessing(false);
-      // setIsLoadingGlobally(false) is generally handled by the parent component's finally block after AI processing
     }
   };
 
@@ -107,7 +104,12 @@ export function FileUploadStep({ onFileProcessed, setIsLoadingGlobally }: FileUp
               </p>
             )}
           </div>
-          <Button type="submit" className="w-full text-lg py-6" disabled={!file || isProcessing}>
+          <Button 
+            type="submit" 
+            size="lg"
+            className="w-full text-base bg-gradient-to-r from-primary to-accent text-primary-foreground hover:opacity-90 transition-opacity" 
+            disabled={!file || isProcessing}
+          >
             {isProcessing ? (
               <Loader2 className="mr-2 h-5 w-5 animate-spin" />
             ) : (
@@ -120,4 +122,3 @@ export function FileUploadStep({ onFileProcessed, setIsLoadingGlobally }: FileUp
     </Card>
   );
 }
-

@@ -75,7 +75,7 @@ export function TestConfigurationStep({ currentConfig, onSubmit }: TestConfigura
         setTimerError("Timer must be a positive number of minutes.");
         return;
       }
-      if (finalTimerMinutes > 1440) { // 24 hours limit
+      if (finalTimerMinutes > 1440) { 
         setTimerError("Timer cannot exceed 1440 minutes (24 hours).");
         return;
       }
@@ -95,7 +95,7 @@ export function TestConfigurationStep({ currentConfig, onSubmit }: TestConfigura
         setNegativeMarkingError("Negative marking value must be a positive number.");
         return;
       }
-      if (finalNegativeMarkingValue > 100) { // Arbitrary upper limit
+      if (finalNegativeMarkingValue > 100) { 
         setNegativeMarkingError("Negative marking value seems too high.");
         return;
       }
@@ -115,7 +115,6 @@ export function TestConfigurationStep({ currentConfig, onSubmit }: TestConfigura
   
   const handleNegativeMarkingValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-     // Allow numbers, decimal points, and empty string
     if (value === "" || /^\d*\.?\d*$/.test(value)) {
         setNegativeMarkingValueInput(value);
         if (negativeMarkingError) setNegativeMarkingError(null);
@@ -157,7 +156,7 @@ export function TestConfigurationStep({ currentConfig, onSubmit }: TestConfigura
                 <Label htmlFor="custom-timer-minutes" className="text-sm">Custom Timer (in minutes)</Label>
                 <Input
                   id="custom-timer-minutes"
-                  type="number"
+                  type="number" // Input type is number, text-sm is default now
                   placeholder="e.g., 75"
                   value={customTimerMinutes}
                   onChange={handleCustomTimerChange}
@@ -193,7 +192,7 @@ export function TestConfigurationStep({ currentConfig, onSubmit }: TestConfigura
                     <Label htmlFor="negative-marking-value" className="text-sm">Marks per incorrect answer</Label>
                     <Input
                     id="negative-marking-value"
-                    type="number"
+                    type="number" // Input type is number, text-sm is default now
                     placeholder="e.g., 0.25 or 1"
                     value={negativeMarkingValueInput}
                     onChange={handleNegativeMarkingValueChange}
@@ -206,7 +205,11 @@ export function TestConfigurationStep({ currentConfig, onSubmit }: TestConfigura
             )}
           </div>
           
-          <Button type="submit" className="w-full text-lg py-6">
+          <Button 
+            type="submit" 
+            size="lg"
+            className="w-full text-base bg-gradient-to-r from-primary to-accent text-primary-foreground hover:opacity-90 transition-opacity"
+          >
             <CheckCircle className="mr-2 h-5 w-5" />
             Start Test
           </Button>
@@ -215,4 +218,3 @@ export function TestConfigurationStep({ currentConfig, onSubmit }: TestConfigura
     </Card>
   );
 }
-
