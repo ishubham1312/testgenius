@@ -451,11 +451,22 @@ export default function TestGeniusPage() {
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <Header onLogoClick={resetState} />
-      <main className="flex-grow container mx-auto px-4 py-8 flex flex-col items-center justify-center">
+      <main className="flex-grow container mx-auto px-4 py-8 flex flex-col items-center justify-center text-center">
+        {currentStep === 'generation_method_selection' && (
+          <div className="mb-8">
+            {/* Apply gradient to Hero Text */}
+            <h1 className="text-4xl md:text-6xl font-bold font-headline mb-4 bg-gradient-to-r from-[#4E61E0] via-[#9461D9] to-[#E05D77] text-transparent bg-clip-text">
+              TestGenius
+            </h1>
+            <p className="text-lg text-muted-foreground">Effortlessly create practice tests from documents, syllabi, or topics with AI.</p>
+          </div>
+        )}
         {renderStepContent()}
       </main>
       <footer className="py-4 text-center text-sm text-muted-foreground border-t">
-        <p>&copy; {new Date().getFullYear()} TestGenius. Powered by AI.</p>
+ <p>&copy; {new Date().getFullYear()} TestGenius. Powered by AI.
+ <span className="mx-2">|</span> 
+ <a href="mailto:ishubham1312@gmail.com" className="underline hover:text-primary transition-colors">Contact Developer</a></p>
       </footer>
     </div>
   );

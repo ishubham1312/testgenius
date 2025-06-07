@@ -20,9 +20,9 @@ export function Header({ onLogoClick }: HeaderProps) {
           <Image
             src="/logo.png"
             alt="TestGenius Logo"
-            width={32}
-            height={32}
-            className="h-8 w-8" 
+            width={48}
+            height={48}
+            className="h-12 w-12"
           />
           <h1 className="text-2xl font-bold font-headline text-primary">TestGenius</h1>
         </div>

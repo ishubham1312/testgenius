@@ -24,14 +24,19 @@ export function FileUploadStep({ onFileProcessed, setIsLoadingGlobally }: FileUp
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
       const selectedFile = event.target.files[0];
+      const maxSizeMb = 20; // New max size in MB
+      const maxSizeBytes = maxSizeMb * 1024 * 1024;
+
       if (selectedFile.type === "application/pdf" || selectedFile.type === "text/plain") {
-        setFile(selectedFile);
+        if (selectedFile.size <= maxSizeBytes) {
+          setFile(selectedFile);
+        } else {
+          toast({ title: "File Too Large", description: `Please upload a file smaller than ${maxSizeMb}MB.`, variant: "destructive" });
+          setFile(null);
+          event.target.value = ""; // Reset file input
+        }
       } else {
-        toast({
-          title: "Invalid File Type",
-          description: "Please upload a PDF or TXT file.",
-          variant: "destructive",
-        });
+        toast({ title: "Invalid File Type", description: "Please upload a PDF or TXT file.", variant: "destructive" });
         setFile(null);
         event.target.value = ""; // Reset file input
       }
@@ -90,17 +95,27 @@ export function FileUploadStep({ onFileProcessed, setIsLoadingGlobally }: FileUp
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
-            <Label htmlFor="file-upload" className="text-base">Select Document</Label>
-            <div className="flex items-center space-x-2">
+            <Label htmlFor="file-upload" className="text-base sr-only">Select Document</Label>
+            <div
+              className="flex flex-col items-center justify-center w-full px-4 py-6 text-center border-2 border-dashed rounded-lg cursor-pointer border-input hover:border-primary transition-colors duration-200 ease-in-out"
+              onClick={() => document.getElementById('file-upload')?.click()}
+            >
+              <UploadCloud className="w-10 h-10 text-muted-foreground mb-3" />
+              <p className="mb-2 text-sm text-muted-foreground">
+                <span className="font-semibold">Click to upload</span> or drag and drop
+              </p>
+              <p className="text-xs text-muted-foreground">PDF or TXT (Max 20MB)</p> {/* Updated max size hint */}
               <Input
                 id="file-upload"
                 type="file"
                 accept=".pdf,.txt"
                 onChange={handleFileChange}
-                className="cursor-pointer file:text-primary file:font-semibold hover:file:bg-primary/10"
+                className="hidden" // Hide the default file input
                 disabled={isProcessing}
               />
             </div>
+            
+            {/* Display selected file info below the drop zone */}
             {file && (
               <p className="text-sm text-muted-foreground flex items-center">
                 <FileText className="w-4 h-4 mr-2 shrink-0" /> Selected: {file.name} ({(file.size / 1024).toFixed(2)} KB)
