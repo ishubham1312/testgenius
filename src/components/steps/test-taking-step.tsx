@@ -112,7 +112,7 @@ export function TestTakingStep({ testSessionDetails, onSubmitTest }: TestTakingS
 
     return cn(
       "h-10 w-10 flex items-center justify-center p-1 text-xs sm:text-sm rounded-md border transition-all focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-      isActive && "ring-2 ring-border shadow-lg scale-105 z-10", // Changed ring-primary to ring-border
+      isActive && "ring-2 ring-primary shadow-lg scale-105 z-10", 
       isAnswered && "bg-green-100 dark:bg-green-700/30 border-green-500/70 text-green-700 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-700/40", 
       !isAnswered && isViewed && "bg-red-100 dark:bg-red-700/30 border-red-500/70 text-red-700 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-700/40",
       !isAnswered && !isViewed && "bg-card hover:bg-accent/80 text-card-foreground"
@@ -200,15 +200,16 @@ export function TestTakingStep({ testSessionDetails, onSubmitTest }: TestTakingS
                   className="space-y-3"
                 >
                   {currentQuestion.options.map((option, optIndex) => (
-                    <div 
+                    <Label // Use Label as the main clickable container for each option
                       key={optIndex} 
+                      htmlFor={`${currentQuestion.id}-option-${optIndex}`}
                       className="flex items-center space-x-3 p-3 border rounded-md hover:bg-accent/50 transition-colors cursor-pointer has-[input:checked]:bg-primary/10 has-[input:checked]:border-primary"
                     >
                       <RadioGroupItem value={option} id={`${currentQuestion.id}-option-${optIndex}`} />
-                      <Label htmlFor={`${currentQuestion.id}-option-${optIndex}`} className="text-base cursor-pointer flex-1" style={{ whiteSpace: 'pre-line' }}>
+                      <span className="text-base flex-1" style={{ whiteSpace: 'pre-line' }}>
                         {option}
-                      </Label>
-                    </div>
+                      </span>
+                    </Label>
                   ))}
                 </RadioGroup>
               </ScrollArea>
@@ -266,7 +267,7 @@ export function TestTakingStep({ testSessionDetails, onSubmitTest }: TestTakingS
 
         <AlertDialog>
           <AlertDialogTrigger asChild>
-            <Button variant="destructive" className="w-full sm:w-auto text-lg py-3" disabled={questions.length === 0}>
+            <Button variant="default" className="w-full sm:w-auto text-lg py-3" disabled={questions.length === 0}>
               <CheckCircle className="mr-2 h-5 w-5" />
               Submit Test
             </Button>
