@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { QuestionType, ScoreSummary, TestResultItem } from "@/types";
@@ -8,6 +9,7 @@ import { QuestionPreviewStep } from "@/components/steps/question-preview-step";
 import { TestTakingStep } from "@/components/steps/test-taking-step";
 import { ScoringOptionsStep } from "@/components/steps/scoring-options-step";
 import { ResultsStep } from "@/components/steps/results-step";
+import { LanguageSelectionStep } from "@/components/steps/language-selection-step";
 import { LoadingSpinner } from "@/components/loading-spinner";
 import { useToast } from "@/hooks/use-toast";
 import { extractQuestions, type ExtractQuestionsOutput } from "@/ai/flows/extract-questions";
@@ -15,7 +17,7 @@ import { scoreTestWithAI, type ScoreTestWithAIInput, type Question as AIScoreQue
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertTriangle } from "lucide-react";
 
-type AppStep = 'upload' | 'previewing_questions' | 'taking_test' | 'awaiting_scoring_choice' | 'results';
+type AppStep = 'upload' | 'language_selection' | 'previewing_questions' | 'taking_test' | 'awaiting_scoring_choice' | 'results';
 
 export default function TestGeniusPage() {
   const [currentStep, setCurrentStep] = useState<AppStep>('upload');
@@ -37,33 +39,63 @@ export default function TestGeniusPage() {
     setError(null);
   };
 
+  const processExtractedQuestions = (aiResult: ExtractQuestionsOutput) => {
+    if (!aiResult.questions || aiResult.questions.length === 0) {
+      setError("AI could not extract any questions based on the current settings. Please try a different file or ensure the content has clear multiple-choice questions in the selected language.");
+      setIsLoading(false);
+      return;
+    }
+    const formattedQuestions: QuestionType[] = aiResult.questions.map((q) => ({
+      id: crypto.randomUUID(),
+      questionText: q.question,
+      options: q.options,
+      aiAssignedAnswer: q.answer,
+    }));
+    setQuestions(formattedQuestions);
+    setCurrentStep('previewing_questions');
+  };
+
   const handleFileProcessed = useCallback(async (text: string) => {
     setExtractedText(text);
     setError(null);
     setIsLoading(true);
     try {
-      const aiResult: ExtractQuestionsOutput = await extractQuestions({ text });
-      if (!aiResult || aiResult.length === 0) {
-        setError("AI could not extract any questions from the provided text. Please try a different file or ensure the content has clear multiple-choice questions.");
-        setIsLoading(false);
-        return;
+      // First call without language preference
+      const initialAiResult: ExtractQuestionsOutput = await extractQuestions({ text });
+
+      if (initialAiResult.requiresLanguageChoice) {
+        setCurrentStep('language_selection');
+      } else {
+        processExtractedQuestions(initialAiResult);
       }
-      const formattedQuestions: QuestionType[] = aiResult.map((q, index) => ({
-        id: crypto.randomUUID(),
-        questionText: q.question,
-        options: q.options,
-        aiAssignedAnswer: q.answer,
-      }));
-      setQuestions(formattedQuestions);
-      setCurrentStep('previewing_questions');
     } catch (e) {
-      console.error("AI extraction error:", e);
-      setError(`Failed to extract questions using AI: ${(e as Error).message}`);
-      toast({ title: "AI Extraction Error", description: (e as Error).message, variant: "destructive" });
+      console.error("AI extraction error (initial):", e);
+      setError(`Failed to process file with AI: ${(e as Error).message}`);
+      toast({ title: "AI Processing Error", description: (e as Error).message, variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
   }, [toast]);
+
+  const handleLanguageSelected = useCallback(async (language: 'en' | 'hi') => {
+    if (!extractedText) {
+      setError("Extracted text not found. Please re-upload the file.");
+      setCurrentStep('upload');
+      return;
+    }
+    setError(null);
+    setIsLoading(true);
+    try {
+      const aiResult: ExtractQuestionsOutput = await extractQuestions({ text: extractedText, preferredLanguage: language });
+      processExtractedQuestions(aiResult);
+    } catch (e) {
+      console.error("AI extraction error (with language preference):", e);
+      setError(`Failed to extract questions in the selected language: ${(e as Error).message}`);
+      toast({ title: "AI Extraction Error", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [extractedText, toast]);
 
   const handleStartTest = useCallback(() => {
     setCurrentStep('taking_test');
@@ -84,13 +116,13 @@ export default function TestGeniusPage() {
         questions: questions.map(q => ({
           question: q.questionText,
           options: q.options,
-          answer: q.aiAssignedAnswer || null, // Use AI's initial guess or null
+          answer: q.aiAssignedAnswer || null,
           userAnswer: userTestAnswers[q.id] || null,
         } as AIScoreQuestion)),
       };
       const aiScoreResult = await scoreTestWithAI(aiScoreInput);
       
-      const updatedQuestions = questions.map((q, index) => {
+      const updatedQuestions = questions.map((q) => {
         const resultItem = aiScoreResult.results.find(r => r.question === q.questionText);
         return {
           ...q,
@@ -171,7 +203,9 @@ export default function TestGeniusPage() {
   const renderStepContent = () => {
     if (isLoading) {
       let message = "Processing...";
-      if (currentStep === 'upload' || (extractedText && questions.length === 0)) message = "Extracting questions with AI...";
+      if (currentStep === 'upload' && !extractedText) message = "Processing file...";
+      if (currentStep === 'upload' && extractedText && questions.length === 0) message = "Extracting questions with AI...";
+      if (currentStep === 'language_selection') message = "Extracting questions in selected language...";
       if (currentStep === 'awaiting_scoring_choice') message = "Scoring test with AI...";
       return <LoadingSpinner message={message} />;
     }
@@ -189,6 +223,8 @@ export default function TestGeniusPage() {
     switch (currentStep) {
       case 'upload':
         return <FileUploadStep onFileProcessed={handleFileProcessed} setIsLoadingGlobally={setIsLoading} />;
+      case 'language_selection':
+        return <LanguageSelectionStep onSelectLanguage={handleLanguageSelected} />;
       case 'previewing_questions':
         return <QuestionPreviewStep questions={questions} onStartTest={handleStartTest} />;
       case 'taking_test':
