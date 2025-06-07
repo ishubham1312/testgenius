@@ -109,9 +109,15 @@ export function TestTakingStep({ testSessionDetails, onSubmitTest }: TestTakingS
     const isViewed = viewedQuestions.has(questionId);
     const isActive = index === currentQuestionIndex;
 
+    if (isActive) {
+      return cn(
+        "h-10 w-10 flex items-center justify-center p-1 text-xs sm:text-sm rounded-md border transition-all focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+        "bg-primary text-primary-foreground ring-2 ring-offset-1 ring-primary-foreground shadow-lg scale-105 z-10 hover:bg-primary/90"
+      );
+    }
+    
     return cn(
       "h-10 w-10 flex items-center justify-center p-1 text-xs sm:text-sm rounded-md border transition-all focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-      isActive && "ring-2 ring-primary shadow-lg scale-105 z-10", 
       isAnswered && "bg-green-100 dark:bg-green-700/30 border-green-500/70 text-green-700 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-700/40", 
       !isAnswered && isViewed && "bg-red-100 dark:bg-red-700/30 border-red-500/70 text-red-700 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-700/40",
       !isAnswered && !isViewed && "bg-card hover:bg-accent/80 text-card-foreground"
@@ -120,7 +126,7 @@ export function TestTakingStep({ testSessionDetails, onSubmitTest }: TestTakingS
 
   const QuestionPaletteContent = () => (
     <div className="flex flex-col h-full">
-      <ScrollArea className="flex-grow mt-1 pr-1 min-h-[150px] md:min-h-0">
+      <ScrollArea className="flex-grow mt-1 pr-1">
         <div className="grid grid-cols-5 gap-2">
           {questions.map((q, index) => (
             <Button
@@ -182,7 +188,7 @@ export function TestTakingStep({ testSessionDetails, onSubmitTest }: TestTakingS
         </div>
       </CardHeader>
       <CardContent className="min-h-[450px] flex flex-col md:flex-row gap-6 p-4 sm:p-6">
-        <div className="flex-1 order-2 md:order-1">
+        <div className="flex-1 order-2 md:order-1 flex flex-col">
           {currentQuestion && (
             <div key={currentQuestion.id} className="space-y-6 h-full flex flex-col">
               <div>
@@ -237,9 +243,8 @@ export function TestTakingStep({ testSessionDetails, onSubmitTest }: TestTakingS
             <SheetContent side="bottom" className="h-[70vh] flex flex-col">
               <SheetHeader>
                 <SheetTitle className="text-center">Question Palette</SheetTitle>
-                {/* Removed explicit SheetClose from here */}
               </SheetHeader>
-              <div className="flex-grow overflow-auto py-4">
+              <div className="flex-grow py-4 flex flex-col">
                 <QuestionPaletteContent />
               </div>
             </SheetContent>
