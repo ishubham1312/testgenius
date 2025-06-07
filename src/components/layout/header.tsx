@@ -1,5 +1,5 @@
 import { ThemeToggle } from "@/components/theme-toggle";
-import { BrainCircuit } from "lucide-react";
+import Image from "next/image";
 
 interface HeaderProps {
   onLogoClick?: () => void;
@@ -17,7 +17,13 @@ export function Header({ onLogoClick }: HeaderProps) {
           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onLogoClick?.(); }}
           aria-label="Go to homepage"
         >
-          <BrainCircuit className="h-7 w-7 text-primary" />
+          <Image
+            src="/logo.png"
+            alt="TestGenius Logo"
+            width={32}
+            height={32}
+            className="h-8 w-8" 
+          />
           <h1 className="text-2xl font-bold font-headline text-primary">TestGenius</h1>
         </div>
         <ThemeToggle />
