@@ -46,7 +46,7 @@ export function TestTakingStep({ testSessionDetails, onSubmitTest }: TestTakingS
   const currentQuestion = questions[currentQuestionIndex];
 
   const submitTestHandler = useCallback(() => {
-    setIsTimerRunning(false);
+    setIsTimerRunning(false); // Important: stop the timer
     onSubmitTest(userAnswers);
   }, [onSubmitTest, userAnswers]);
 
@@ -56,32 +56,23 @@ export function TestTakingStep({ testSessionDetails, onSubmitTest }: TestTakingS
   }, [userAnswers, questions.length]);
 
   useEffect(() => {
-    if (questions.length > 0 && !viewedQuestions.has(questions[0].id)) {
-       setViewedQuestions(prev => new Set(prev).add(questions[0].id));
+    if (questions.length > 0 && currentQuestion && !viewedQuestions.has(currentQuestion.id)) {
+       setViewedQuestions(prev => new Set(prev).add(currentQuestion.id));
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [questions]); 
+  }, [currentQuestion]); // Only currentQuestion as we mark viewed when it changes
 
-  useEffect(() => {
-    if (currentQuestion) {
-      setViewedQuestions(prev => {
-        if (!prev.has(currentQuestion.id)) {
-          return new Set(prev).add(currentQuestion.id);
-        }
-        return prev;
-      });
-    }
-  }, [currentQuestion]);
-
+  // Timer logic
   useEffect(() => {
     if (isTimerRunning && timeLeft !== null && timeLeft > 0) {
       const timerId = setInterval(() => {
-        setTimeLeft(prevTime => (prevTime ? prevTime - 1 : 0));
+        setTimeLeft(prevTime => (prevTime !== null && prevTime > 0 ? prevTime - 1 : 0));
       }, 1000);
       return () => clearInterval(timerId);
-    } else if (timeLeft === 0) {
-      setIsTimerRunning(false);
-      submitTestHandler(); 
+    } else if (timeLeft === 0 && isTimerRunning) { 
+      // This condition means time just hit 0 AND the timer was supposed to be running.
+      setIsTimerRunning(false); // Ensure timer is marked as not running before submission
+      submitTestHandler();
     }
   }, [isTimerRunning, timeLeft, submitTestHandler]);
 
@@ -94,8 +85,11 @@ export function TestTakingStep({ testSessionDetails, onSubmitTest }: TestTakingS
     if (index >= 0 && index < questions.length) {
       setCurrentQuestionIndex(index);
       setIsPaletteOpen(false); // Close palette on navigation
+      if (questions[index] && !viewedQuestions.has(questions[index].id)) {
+        setViewedQuestions(prev => new Set(prev).add(questions[index].id));
+      }
     }
-  }, [questions.length]);
+  }, [questions, viewedQuestions]); // Added viewedQuestions
 
   const goToNextQuestion = () => {
     navigateToQuestion(currentQuestionIndex + 1);
@@ -120,9 +114,9 @@ export function TestTakingStep({ testSessionDetails, onSubmitTest }: TestTakingS
     return cn(
       "h-10 w-10 flex items-center justify-center p-1 text-xs sm:text-sm rounded-md border transition-all focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
       isActive && "ring-2 ring-primary shadow-lg scale-105 z-10",
-      !isAnswered && !isViewed && "bg-card hover:bg-accent/80 text-card-foreground", 
       isAnswered && "bg-green-100 dark:bg-green-700/30 border-green-500/70 text-green-700 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-700/40", 
-      isViewed && !isAnswered && "bg-red-100 dark:bg-red-700/30 border-red-500/70 text-red-700 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-700/40" 
+      !isAnswered && isViewed && "bg-red-100 dark:bg-red-700/30 border-red-500/70 text-red-700 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-700/40",
+      !isAnswered && !isViewed && "bg-card hover:bg-accent/80 text-card-foreground"
     );
   };
 
@@ -261,7 +255,7 @@ export function TestTakingStep({ testSessionDetails, onSubmitTest }: TestTakingS
               <AlertDialogTitle>Are you sure you want to end the test?</AlertDialogTitle>
               <AlertDialogDescription>
                 Your answers will be submitted for scoring. You cannot make any more changes.
-                 {Object.keys(userAnswers).length !== questions.length && " You have unanswered questions."}
+                 {Object.keys(userAnswers).length !== questions.length && Object.keys(userAnswers).length < questions.length && " You have unanswered questions."}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
