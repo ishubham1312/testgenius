@@ -9,14 +9,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { extractTextFromPdf } from "@/lib/pdf-parser";
-import { UploadCloud, FileText, Loader2 } from "lucide-react";
+import { BookMarked, FileText, Loader2, ArrowRight } from "lucide-react";
 
-interface FileUploadStepProps {
+interface SyllabusUploadStepProps {
   onFileProcessed: (text: string) => void;
   setIsLoadingGlobally: (isLoading: boolean) => void;
 }
 
-export function FileUploadStep({ onFileProcessed, setIsLoadingGlobally }: FileUploadStepProps) {
+export function SyllabusUploadStep({ onFileProcessed, setIsLoadingGlobally }: SyllabusUploadStepProps) {
   const [file, setFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
@@ -29,11 +29,11 @@ export function FileUploadStep({ onFileProcessed, setIsLoadingGlobally }: FileUp
       } else {
         toast({
           title: "Invalid File Type",
-          description: "Please upload a PDF or TXT file.",
+          description: "Please upload a PDF or TXT file for the syllabus.",
           variant: "destructive",
         });
         setFile(null);
-        event.target.value = ""; // Reset file input
+        event.target.value = ""; 
       }
     }
   };
@@ -43,14 +43,14 @@ export function FileUploadStep({ onFileProcessed, setIsLoadingGlobally }: FileUp
     if (!file) {
       toast({
         title: "No File Selected",
-        description: "Please select a file to upload.",
+        description: "Please select a syllabus file to upload.",
         variant: "destructive",
       });
       return;
     }
 
     setIsProcessing(true);
-    setIsLoadingGlobally(true);
+    setIsLoadingGlobally(true); // Inform parent page about loading state
 
     try {
       let textContent = "";
@@ -61,18 +61,15 @@ export function FileUploadStep({ onFileProcessed, setIsLoadingGlobally }: FileUp
       }
       onFileProcessed(textContent);
     } catch (error) {
-      console.error("Error processing file:", error);
+      console.error("Error processing syllabus file:", error);
       toast({
-        title: "Error Processing File",
+        title: "Error Processing Syllabus",
         description: (error as Error).message || "An unexpected error occurred.",
         variant: "destructive",
       });
-      // setIsLoadingGlobally(false) will be handled by parent if onFileProcessed doesn't transition.
-      // if an error occurs here before onFileProcessed is called, then we should set it.
-       setIsLoadingGlobally(false);
     } finally {
       setIsProcessing(false);
-      // setIsLoadingGlobally(false) is generally handled by the parent component's finally block after AI processing
+      setIsLoadingGlobally(false); // Reset loading state on parent
     }
   };
 
@@ -80,20 +77,19 @@ export function FileUploadStep({ onFileProcessed, setIsLoadingGlobally }: FileUp
     <Card className="w-full max-w-lg shadow-xl">
       <CardHeader>
         <CardTitle className="font-headline text-3xl text-center flex items-center justify-center gap-2">
-            <FileText className="h-8 w-8 text-primary"/>
-             Upload Document
+            <BookMarked className="h-8 w-8 text-primary"/> Upload Syllabus
         </CardTitle>
         <CardDescription className="text-center">
-          Upload a PDF or TXT file containing existing multiple-choice questions.
+          Upload a PDF or TXT file containing the syllabus to generate questions from.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
-            <Label htmlFor="file-upload" className="text-base">Select Document</Label>
+            <Label htmlFor="syllabus-upload" className="text-base">Select Syllabus File</Label>
             <div className="flex items-center space-x-2">
               <Input
-                id="file-upload"
+                id="syllabus-upload"
                 type="file"
                 accept=".pdf,.txt"
                 onChange={handleFileChange}
@@ -111,13 +107,12 @@ export function FileUploadStep({ onFileProcessed, setIsLoadingGlobally }: FileUp
             {isProcessing ? (
               <Loader2 className="mr-2 h-5 w-5 animate-spin" />
             ) : (
-              <UploadCloud className="mr-2 h-5 w-5" />
+              <ArrowRight className="mr-2 h-5 w-5" />
             )}
-            {isProcessing ? "Processing Document..." : "Extract Questions"}
+            {isProcessing ? "Processing Syllabus..." : "Proceed to Options"}
           </Button>
         </form>
       </CardContent>
     </Card>
   );
 }
-
