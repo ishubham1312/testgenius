@@ -16,8 +16,6 @@ interface QuestionPreviewStepProps {
 
 export function QuestionPreviewStep({ questions, onStartTest }: QuestionPreviewStepProps) {
   if (!questions || questions.length === 0) {
-    // This case should ideally be handled by the parent component (page.tsx) before rendering this step.
-    // However, as a fallback:
     return (
       <Card className="w-full max-w-2xl shadow-xl">
         <CardHeader>
@@ -39,6 +37,8 @@ export function QuestionPreviewStep({ questions, onStartTest }: QuestionPreviewS
         </CardTitle>
         <CardDescription className="text-center">
           Here are the questions ({questions.length} found). Review them before starting the test.
+          <br />
+          <span className="text-xs text-muted-foreground">Questions with newlines or matching formats will be displayed as intended during the test.</span>
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -58,7 +58,7 @@ export function QuestionPreviewStep({ questions, onStartTest }: QuestionPreviewS
                       </li>
                     ))}
                   </ul>
-                  {q.aiAssignedAnswer === null && <p className="text-sm text-amber-600 dark:text-amber-400 mt-2">AI did not assign a confident answer.</p>}
+                  {q.aiAssignedAnswer === null && <p className="text-sm text-amber-600 dark:text-amber-400 mt-2">AI did not assign a confident answer for this question.</p>}
                 </AccordionContent>
               </AccordionItem>
             ))}

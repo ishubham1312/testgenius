@@ -28,5 +28,11 @@ export interface ScoreSummary {
   score: number;
   totalQuestions: number;
   results: TestResultItem[];
-  testConfiguration?: TestConfiguration; // Optional: to display if settings were active
+  testConfiguration: TestConfiguration; // Now mandatory
+}
+
+// This type is passed to TestTakingStep
+export interface TestSessionDetails {
+  questions: QuestionType[];
+  testConfiguration: TestConfiguration;
 }

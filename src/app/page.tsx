@@ -1,7 +1,7 @@
 
 "use client";
 
-import type { QuestionType, ScoreSummary, TestResultItem, TestConfiguration } from "@/types";
+import type { QuestionType, ScoreSummary, TestResultItem, TestConfiguration, TestSessionDetails } from "@/types";
 import { useState, useCallback, useEffect } from "react";
 import { Header } from "@/components/layout/header";
 import { FileUploadStep } from "@/components/steps/file-upload-step";
@@ -24,6 +24,8 @@ import { generateQuestionsFromTopic, type GenerateQuestionsFromTopicInput, type 
 import { scoreTestWithAI, type ScoreTestWithAIInput, type Question as AIScoreQuestion } from "@/ai/flows/score-test";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertTriangle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+
 
 type AppStep = 
   | 'generation_method_selection'
@@ -59,7 +61,7 @@ export default function TestGeniusPage() {
     isTimedTest: false,
     durationMinutes: 30,
     enableNegativeMarking: false,
-    negativeMarkValue: 0.25, // Default negative mark value if enabled
+    negativeMarkValue: 0.25, 
   });
 
   const [isLoading, setIsLoading] = useState(false);
@@ -98,8 +100,6 @@ export default function TestGeniusPage() {
     if (aiResult.questions.length === 0) {
       setError("AI could not extract or generate any questions. Please adjust your input or try different options.");
       setQuestions([]);
-      // Decide where to go if no questions - maybe back to options or upload
-      // For now, let's assume we stay to show the error, then user can go back.
     } else {
       setError(null);
       const formattedQuestions: QuestionType[] = aiResult.questions.map((q) => ({
@@ -109,7 +109,7 @@ export default function TestGeniusPage() {
         aiAssignedAnswer: q.answer,
       }));
       setQuestions(formattedQuestions);
-      setCurrentStep('test_configuration'); // Proceed to test configuration after fetching questions
+      setCurrentStep('test_configuration'); 
     }
     setIsLoading(false);
   }, [setQuestions, setCurrentStep, setError, setIsLoading]);
@@ -232,7 +232,7 @@ export default function TestGeniusPage() {
       toast({ title: "AI Processing Error", description: (e as Error).message, variant: "destructive" });
       setIsLoading(false);
     }
-  }, [generationMode, extractedDocumentText, syllabusText, syllabusOptions, topicText, topicOptions, toast, processAIQuestionsOutput, setCurrentStep, setError, setIsLoading]);
+  }, [generationMode, extractedDocumentText, syllabusText, syllabusOptions, topicText, topicOptions, toast, processAIQuestionsOutput, setError, setIsLoading]);
 
 
   const handleGenerationMethodSelect = (method: GenerationMode) => {
@@ -252,13 +252,13 @@ export default function TestGeniusPage() {
   const handleStartTest = useCallback(() => {
     setCurrentStep('taking_test');
     setError(null);
-  }, [setCurrentStep, setError]);
+  }, [setError]);
 
   const handleSubmitTest = useCallback((answers: Record<string, string>) => {
     setUserTestAnswers(answers);
     setCurrentStep('awaiting_scoring_choice');
     setError(null);
-  }, [setUserTestAnswers, setCurrentStep, setError]);
+  }, [setUserTestAnswers, setError]);
 
   const handleScoreWithAI = useCallback(async () => {
     setIsLoading(true);
@@ -268,48 +268,35 @@ export default function TestGeniusPage() {
         questions: questions.map(q => ({
           question: q.questionText,
           options: q.options,
-          answer: q.aiAssignedAnswer || null,
+          answer: q.aiAssignedAnswer || null, // AI might not have assigned one if extracting
           userAnswer: userTestAnswers[q.id] || null,
         } as AIScoreQuestion)),
+        testConfiguration: testConfig, // Pass test config for negative marking
       };
-      // TODO: Pass negative marking info to scoreTestWithAI if it's adapted to handle it
+      
       const aiScoreResult = await scoreTestWithAI(aiScoreInput);
       
-      let finalScore = 0;
-      const detailedResults: TestResultItem[] = [];
-
-      aiScoreResult.results.forEach(r => {
-        let questionScore = 0;
-        if (r.isCorrect) {
-          questionScore = 1; // Assume 1 point per correct answer
-        } else if (testConfig.enableNegativeMarking && r.userAnswer !== null) { // Negative mark only if answered incorrectly
-          questionScore = -testConfig.negativeMarkValue;
-        }
-        finalScore += questionScore;
-        
-        detailedResults.push({
+      const detailedResults: TestResultItem[] = aiScoreResult.results.map(r => ({
           questionText: r.question,
           userSelectedAnswer: r.userAnswer,
           actualCorrectAnswer: r.correctAnswer,
           isCorrect: r.isCorrect,
           options: questions.find(q => q.questionText === r.question)?.options || [],
-        });
-      });
-       finalScore = Math.max(0, finalScore); // Ensure score doesn't go below 0
-
-      const updatedQuestions = questions.map((q) => {
+        }));
+      
+      const updatedQuestionsWithResults = questions.map((q) => {
         const resultItem = detailedResults.find(r => r.questionText === q.questionText);
         return {
           ...q,
-          userSelectedAnswer: userTestAnswers[q.id] || null,
+          userSelectedAnswer: resultItem?.userSelectedAnswer || userTestAnswers[q.id] || null,
           actualCorrectAnswer: resultItem?.actualCorrectAnswer || "N/A",
           isCorrect: resultItem?.isCorrect || false,
         };
       });
-      setQuestions(updatedQuestions);
+      setQuestions(updatedQuestionsWithResults);
 
       setScoreDetails({
-        score: finalScore,
+        score: aiScoreResult.score, // Score is now calculated by the AI flow considering negative marking
         totalQuestions: aiScoreResult.totalQuestions,
         results: detailedResults,
         testConfiguration: testConfig,
@@ -321,14 +308,14 @@ export default function TestGeniusPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [questions, userTestAnswers, testConfig, toast, setIsLoading, setError, setQuestions, setScoreDetails, setCurrentStep]);
+  }, [questions, userTestAnswers, testConfig, toast, setIsLoading, setError, setScoreDetails, setCurrentStep]);
 
   const handleUploadKeyAndScore = useCallback((keyAnswers: string[]) => {
     setIsLoading(true);
     setError(null);
     if (keyAnswers.length !== questions.length) {
       setError(`Answer key has ${keyAnswers.length} answers, but test has ${questions.length} questions.`);
-      toast({ title: "Answer Key Mismatch", variant: "destructive" });
+      toast({ title: "Answer Key Mismatch", description: `Expected ${questions.length} answers, got ${keyAnswers.length}.`, variant: "destructive" });
       setIsLoading(false);
       return;
     }
@@ -336,7 +323,7 @@ export default function TestGeniusPage() {
     let currentScore = 0;
     const detailedResults: TestResultItem[] = [];
 
-    const updatedQuestions = questions.map((q, index) => {
+    const updatedQuestionsWithResults = questions.map((q, index) => {
       const correctAnswer = keyAnswers[index];
       const userAnswer = userTestAnswers[q.id] || null;
       const isCorrect = userAnswer === correctAnswer;
@@ -361,7 +348,7 @@ export default function TestGeniusPage() {
     });
     currentScore = Math.max(0, currentScore); // Ensure score doesn't go below 0
     
-    setQuestions(updatedQuestions);
+    setQuestions(updatedQuestionsWithResults);
     setScoreDetails({
       score: currentScore,
       totalQuestions: questions.length,
@@ -370,7 +357,7 @@ export default function TestGeniusPage() {
     });
     setCurrentStep('results');
     setIsLoading(false);
-  }, [questions, userTestAnswers, testConfig, toast, setIsLoading, setError, setQuestions, setScoreDetails, setCurrentStep]);
+  }, [questions, userTestAnswers, testConfig, toast, setIsLoading, setError, setScoreDetails, setCurrentStep]);
 
 
   const renderStepContent = () => {
@@ -420,7 +407,7 @@ export default function TestGeniusPage() {
       case 'test_configuration':
         return <TestConfigurationStep currentConfig={testConfig} onSubmitConfig={handleTestConfigurationSubmit} />;
       case 'previewing_questions':
-         if (questions.length === 0 && !isLoading) { // Handles case where AI returned no questions after loading
+         if (questions.length === 0 && !isLoading) { 
             return (
               <Alert variant="destructive" className="w-full max-w-xl mx-auto">
                 <AlertTriangle className="h-4 w-4" />
@@ -435,7 +422,8 @@ export default function TestGeniusPage() {
           }
         return <QuestionPreviewStep questions={questions} onStartTest={handleStartTest} />;
       case 'taking_test':
-        return <TestTakingStep questions={questions} onSubmitTest={handleSubmitTest} testConfiguration={testConfig} />;
+        const testSessionDetails: TestSessionDetails = { questions, testConfiguration: testConfig };
+        return <TestTakingStep testSessionDetails={testSessionDetails} onSubmitTest={handleSubmitTest} />;
       case 'awaiting_scoring_choice':
         return <ScoringOptionsStep onScoreWithAI={handleScoreWithAI} onUploadKeyAndScore={handleUploadKeyAndScore} setIsLoadingGlobally={setIsLoading} />;
       case 'results':
@@ -450,7 +438,7 @@ export default function TestGeniusPage() {
         }
         return <ResultsStep scoreSummary={scoreDetails} onRetakeTest={resetState} />;
       default:
-        const exhaustiveCheck: never = currentStep; // Ensures all cases are handled
+        const exhaustiveCheck: never = currentStep; 
         return <p>Unknown step: {exhaustiveCheck}</p>;
     }
   };
