@@ -71,7 +71,7 @@ Else (e.g., language is neither English nor Hindi, or no questions found):
 
 Extract the multiple-choice questions with 4 options each.
 If options or answers are missing for a question in the target language (as determined above or preferred), generate reasonable ones.
-Format the output according to the defined schema. Ensure 'questions' is an array.
+Format the output according to the defined schema. Ensure 'questions' is an array and all required fields like 'requiresLanguageChoice' and 'extractedLanguage' are present in your response.
   `,
   config: {
     safetySettings: [
@@ -91,18 +91,41 @@ const extractQuestionsFlow = ai.defineFlow(
   },
   async input => {
     const {output} = await extractQuestionsPrompt(input);
-    // Ensure questions is always an array, even if the LLM fails to provide it.
+
     if (!output) {
+        // LLM returned nothing or a falsy value.
         return {
             questions: [],
-            requiresLanguageChoice: !input.preferredLanguage, // If no preference, assume choice might be needed on error
+            requiresLanguageChoice: !input.preferredLanguage, // If no preference, assume choice might be needed.
             extractedLanguage: 'unknown',
         };
     }
+
+    // LLM returned an object, but it might be incomplete.
+    const questions = output.questions || [];
+    const extractedLanguage = output.extractedLanguage || 'unknown';
+    let requiresLanguageChoice = output.requiresLanguageChoice;
+
+    // If requiresLanguageChoice is not a boolean (e.g., undefined because LLM missed it), infer its value.
+    if (typeof requiresLanguageChoice !== 'boolean') {
+        if (input.preferredLanguage) {
+            // If a language was preferred, AI shouldn't require a choice.
+            requiresLanguageChoice = false;
+        } else {
+            // No preferred language, decision depends on what LLM extracted.
+            if (extractedLanguage === 'mixed') {
+                requiresLanguageChoice = true;
+            } else { // 'en', 'hi', 'unknown', or any other value implies a choice is not needed or cannot be made.
+                requiresLanguageChoice = false;
+            }
+        }
+    }
+
     return {
-        questions: output.questions || [],
-        requiresLanguageChoice: output.requiresLanguageChoice,
-        extractedLanguage: output.extractedLanguage,
+        questions: questions,
+        requiresLanguageChoice: requiresLanguageChoice, // This is now guaranteed to be a boolean.
+        extractedLanguage: extractedLanguage,
     };
   }
 );
+
