@@ -8,9 +8,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { CheckCircle, ChevronLeft, ChevronRight, Menu, TimerIcon, X } from "lucide-react";
+import { CheckCircle, ChevronLeft, ChevronRight, Menu, TimerIcon } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import {
   AlertDialog,
@@ -46,7 +46,7 @@ export function TestTakingStep({ testSessionDetails, onSubmitTest }: TestTakingS
   const currentQuestion = questions[currentQuestionIndex];
 
   const submitTestHandler = useCallback(() => {
-    setIsTimerRunning(false); // Important: stop the timer
+    setIsTimerRunning(false); 
     onSubmitTest(userAnswers);
   }, [onSubmitTest, userAnswers]);
 
@@ -62,7 +62,6 @@ export function TestTakingStep({ testSessionDetails, onSubmitTest }: TestTakingS
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentQuestion]); 
 
-  // Timer logic
   useEffect(() => {
     if (isTimerRunning && timeLeft !== null && timeLeft > 0) {
       const timerId = setInterval(() => {
@@ -183,7 +182,6 @@ export function TestTakingStep({ testSessionDetails, onSubmitTest }: TestTakingS
         </div>
       </CardHeader>
       <CardContent className="min-h-[450px] flex flex-col md:flex-row gap-6 p-4 sm:p-6">
-        {/* Main Question Area */}
         <div className="flex-1 order-2 md:order-1">
           {currentQuestion && (
             <div key={currentQuestion.id} className="space-y-6 h-full flex flex-col">
@@ -200,7 +198,7 @@ export function TestTakingStep({ testSessionDetails, onSubmitTest }: TestTakingS
                   className="space-y-3"
                 >
                   {currentQuestion.options.map((option, optIndex) => (
-                    <Label // Use Label as the main clickable container for each option
+                    <Label
                       key={optIndex} 
                       htmlFor={`${currentQuestion.id}-option-${optIndex}`}
                       className="flex items-center space-x-3 p-3 border rounded-md hover:bg-accent/50 transition-colors cursor-pointer has-[input:checked]:bg-primary/10 has-[input:checked]:border-primary"
@@ -223,14 +221,12 @@ export function TestTakingStep({ testSessionDetails, onSubmitTest }: TestTakingS
            )}
         </div>
 
-        {/* Question Palette Area - Desktop */}
         <div className="hidden md:flex w-full md:w-[15rem] lg:w-[18rem] order-1 md:order-2 md:border-l md:pl-4 lg:pl-6 flex-col">
           <h4 className="text-md font-semibold mb-3 font-headline text-center">Question Palette</h4>
           <QuestionPaletteContent />
         </div>
       </CardContent>
 
-      {/* Question Palette Trigger - Mobile */}
       <div className="md:hidden p-4 flex justify-center border-t">
           <Sheet open={isPaletteOpen} onOpenChange={setIsPaletteOpen}>
             <SheetTrigger asChild>
@@ -238,14 +234,10 @@ export function TestTakingStep({ testSessionDetails, onSubmitTest }: TestTakingS
                 <Menu className="mr-2 h-5 w-5" /> View Question Palette
               </Button>
             </SheetTrigger>
-            <SheetContent side="bottom" className="h-[70vh] flex flex-col"> {/* Increased height slightly */}
+            <SheetContent side="bottom" className="h-[70vh] flex flex-col">
               <SheetHeader>
                 <SheetTitle className="text-center">Question Palette</SheetTitle>
-                 <SheetClose asChild>
-                     <Button variant="ghost" size="icon" className="absolute right-4 top-4">
-                        <X className="h-5 w-5" />
-                    </Button>
-                </SheetClose>
+                {/* Removed explicit SheetClose from here */}
               </SheetHeader>
               <div className="flex-grow overflow-auto py-4">
                 <QuestionPaletteContent />
