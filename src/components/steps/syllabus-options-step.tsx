@@ -24,7 +24,7 @@ interface SyllabusOptionsStepProps {
 }
 
 export function SyllabusOptionsStep({ onSubmitOptions }: SyllabusOptionsStepProps) {
-  const [numQuestions, setNumQuestions] = useState(10);
+  const [numQuestions, setNumQuestions] = useState(0); // Default to 0
   const [difficultyLevel, setDifficultyLevel] = useState<'easy' | 'medium' | 'hard'>('medium');
   const [preferredLanguage, setPreferredLanguage] = useState<'en' | 'hi' | undefined>(undefined);
   const { toast } = useToast();
@@ -35,21 +35,22 @@ export function SyllabusOptionsStep({ onSubmitOptions }: SyllabusOptionsStepProp
 
   const handleNumQuestionsInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     let value = parseInt(event.target.value, 10);
-    if (isNaN(value)) {
-      value = 1; // Default to 1 if input is not a number
+    if (isNaN(value)) { // If input is cleared or non-numeric
+      value = 0; // Default to 0
     } else if (value > 50) {
       value = 50;
       toast({ title: "Limit Reached", description: "Maximum 50 questions allowed." });
-    } else if (value < 1) {
-      value = 1;
+    } else if (value < 0) { // Allow 0, prevent negative
+      value = 0;
+      toast({ title: "Input Adjusted", description: "Minimum 0 questions allowed."});
     }
     setNumQuestions(value);
   };
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (numQuestions < 1 || numQuestions > 50) {
-        toast({ title: "Invalid Input", description: "Number of questions must be between 1 and 50.", variant: "destructive" });
+    if (numQuestions < 0 || numQuestions > 50) { // Check if less than 0
+        toast({ title: "Invalid Input", description: "Number of questions must be between 0 and 50.", variant: "destructive" });
         return;
     }
     onSubmitOptions({ numQuestions, difficultyLevel, preferredLanguage });
@@ -70,12 +71,12 @@ export function SyllabusOptionsStep({ onSubmitOptions }: SyllabusOptionsStepProp
         <form onSubmit={handleSubmit} className="space-y-8">
           <div className="space-y-3">
             <Label htmlFor="num-questions-syllabus-input" className="text-base">
-              Number of Questions (1-50): <span className="text-primary font-semibold">{numQuestions}</span>
+              Number of Questions (0-50): <span className="text-primary font-semibold">{numQuestions}</span>
             </Label>
             <div className="flex items-center gap-4">
               <Slider
                 id="num-questions-syllabus-slider"
-                min={1}
+                min={0} // Min to 0
                 max={50}
                 step={1}
                 value={[numQuestions]}
@@ -87,7 +88,7 @@ export function SyllabusOptionsStep({ onSubmitOptions }: SyllabusOptionsStepProp
                 type="number"
                 value={numQuestions}
                 onChange={handleNumQuestionsInputChange}
-                min="1"
+                min="0" // Min to 0
                 max="50"
                 className="w-20 text-center"
               />

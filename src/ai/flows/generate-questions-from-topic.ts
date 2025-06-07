@@ -22,7 +22,7 @@ const QuestionObjectSchema = z.object({
 
 const GenerateQuestionsFromTopicInputSchema = z.object({
   topic: z.string().describe('The topic(s) to generate questions about.'),
-  numQuestions: z.number().int().positive().describe('The desired number of questions to generate.'),
+  numQuestions: z.number().int().nonnegative().describe('The desired number of questions to generate (0 is valid).'),
   difficultyLevel: z.enum(['easy', 'medium', 'hard']).describe('The desired difficulty level for the questions.'),
   preferredLanguage: z.enum(['en', 'hi']).optional().describe('If provided, the AI will prioritize generating questions in this language.'),
 });
@@ -47,6 +47,7 @@ const generateQuestionsPrompt = ai.definePrompt({
   output: {schema: GenerateQuestionsFromTopicOutputSchema},
   prompt: `You are an expert curriculum designer and question generator.
 Your task is to generate multiple-choice questions based on the provided topic(s).
+If the number of questions to generate is 0, return an empty 'questions' array.
 
 Topic(s): {{{topic}}}
 Number of questions to generate: {{{numQuestions}}}
@@ -71,7 +72,7 @@ For each question:
 - Ensure questions are suitable for a general audience unless the topic implies a specific one.
 - For matching questions, list items clearly. For bullet points, use standard markdown list format.
 
-Format the output according to the defined JSON schema. Ensure 'questions' is an array of {{{numQuestions}}} items (or fewer if not possible), and all fields like 'requiresLanguageChoice' and 'extractedLanguage' are present.
+Format the output according to the defined JSON schema. Ensure 'questions' is an array of {{{numQuestions}}} items (or fewer if not possible, or empty if numQuestions is 0), and all fields like 'requiresLanguageChoice' and 'extractedLanguage' are present.
   `,
   config: {
     safetySettings: [
@@ -90,6 +91,13 @@ const generateQuestionsFromTopicFlow = ai.defineFlow(
     outputSchema: GenerateQuestionsFromTopicOutputSchema,
   },
   async (input: GenerateQuestionsFromTopicInput): Promise<GenerateQuestionsFromTopicOutput> => {
+    if (input.numQuestions === 0) {
+      return {
+        questions: [],
+        requiresLanguageChoice: false,
+        extractedLanguage: input.preferredLanguage || 'en', // Default to 'en' if no preference
+      };
+    }
     const {output} = await generateQuestionsPrompt(input);
 
     if (!output) {
@@ -101,12 +109,11 @@ const generateQuestionsFromTopicFlow = ai.defineFlow(
     }
     
     const questions = output.questions || [];
-    // Default extractedLanguage based on preference or fallback to 'en' or 'unknown'
     const extractedLanguage = output.extractedLanguage || (input.preferredLanguage || 'en');
     let requiresLanguageChoice = output.requiresLanguageChoice;
 
     if (typeof requiresLanguageChoice !== 'boolean') {
-        requiresLanguageChoice = false; // Default to false if AI doesn't specify
+        requiresLanguageChoice = false; 
     }
 
     return {

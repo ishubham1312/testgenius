@@ -16,7 +16,7 @@ import {z} from 'genkit';
 
 const GenerateQuestionsFromSyllabusInputSchema = z.object({
   syllabusText: z.string().describe('The text content of the syllabus.'),
-  numQuestions: z.number().int().positive().describe('The desired number of questions to generate.'),
+  numQuestions: z.number().int().nonnegative().describe('The desired number of questions to generate (0 is valid).'),
   difficultyLevel: z.enum(['easy', 'medium', 'hard']).describe('The desired difficulty level for the questions.'),
   preferredLanguage: z.enum(['en', 'hi']).optional().describe('If provided, the AI will prioritize generating questions in this language.'),
 });
@@ -48,6 +48,7 @@ const generateQuestionsPrompt = ai.definePrompt({
   output: {schema: GenerateQuestionsFromSyllabusOutputSchema},
   prompt: `You are an expert curriculum designer and question generator.
 Your task is to generate a set of multiple-choice questions based on the provided syllabus.
+If the number of questions to generate is 0, return an empty 'questions' array.
 
 Syllabus Text:
 {{{syllabusText}}}
@@ -78,7 +79,7 @@ For each question:
 - Clearly indicate the correct answer.
 - Adhere to the specified difficulty level ({{difficultyLevel}}).
 
-Format the output according to the defined JSON schema. Ensure 'questions' is an array of {{{numQuestions}}} items (or fewer if not possible), and all fields like 'requiresLanguageChoice' and 'extractedLanguage' are present.
+Format the output according to the defined JSON schema. Ensure 'questions' is an array of {{{numQuestions}}} items (or fewer if not possible, or empty if numQuestions is 0), and all fields like 'requiresLanguageChoice' and 'extractedLanguage' are present.
   `,
   config: {
     safetySettings: [
@@ -97,6 +98,13 @@ const generateQuestionsFromSyllabusFlow = ai.defineFlow(
     outputSchema: GenerateQuestionsFromSyllabusOutputSchema,
   },
   async (input: GenerateQuestionsFromSyllabusInput): Promise<GenerateQuestionsFromSyllabusOutput> => {
+    if (input.numQuestions === 0) {
+      return {
+        questions: [],
+        requiresLanguageChoice: false,
+        extractedLanguage: input.preferredLanguage || 'unknown',
+      };
+    }
     const {output} = await generateQuestionsPrompt(input);
 
     if (!output) {
@@ -120,10 +128,9 @@ const generateQuestionsFromSyllabusFlow = ai.defineFlow(
     }
 
     return {
-        questions: questions.slice(0, input.numQuestions), // Ensure we don't exceed numQuestions
+        questions: questions.slice(0, input.numQuestions), 
         requiresLanguageChoice: requiresLanguageChoice,
         extractedLanguage: extractedLanguage,
     };
   }
 );
-
