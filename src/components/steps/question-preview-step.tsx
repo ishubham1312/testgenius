@@ -54,11 +54,9 @@ export function QuestionPreviewStep({ questions, onStartTest }: QuestionPreviewS
                     {q.options.map((opt, optIndex) => (
                       <li key={optIndex} style={{ whiteSpace: 'pre-line' }}>
                         {opt}
-                        {q.aiAssignedAnswer === opt && <Badge variant="outline" className="ml-2 bg-green-100 dark:bg-green-800 text-green-700 dark:text-green-200 border-green-500">AI Suggests as Answer</Badge>}
                       </li>
                     ))}
                   </ul>
-                  {q.aiAssignedAnswer === null && <p className="text-sm text-amber-600 dark:text-amber-400 mt-2">AI did not assign a confident answer for this question.</p>}
                 </AccordionContent>
               </AccordionItem>
             ))}
