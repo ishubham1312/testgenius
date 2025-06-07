@@ -24,7 +24,7 @@ interface TopicOptionsStepProps {
 }
 
 export function TopicOptionsStep({ onSubmitOptions }: TopicOptionsStepProps) {
-  const [numQuestions, setNumQuestions] = useState(0);
+  const [numQuestions, setNumQuestions] = useState(5); // Default to 5
   const [difficultyLevel, setDifficultyLevel] = useState<'easy' | 'medium' | 'hard'>('medium');
   const [preferredLanguage, setPreferredLanguage] = useState<'en' | 'hi' | undefined>(undefined);
   const { toast } = useToast();
@@ -37,19 +37,20 @@ export function TopicOptionsStep({ onSubmitOptions }: TopicOptionsStepProps) {
     const inputValue = event.target.value;
 
     if (inputValue === "") {
-      setNumQuestions(0);
+      setNumQuestions(5); // Default to 5 if empty
       return;
     }
 
     let numericValue = parseInt(inputValue, 10);
 
     if (isNaN(numericValue)) {
-      setNumQuestions(0);
+      setNumQuestions(5); // Default to 5 if not a number
       return;
     }
 
-    if (numericValue < 0) {
-      numericValue = 0;
+    if (numericValue < 5) {
+      numericValue = 5;
+      toast({ title: "Limit Reached", description: "Minimum 5 questions allowed." });
     } else if (numericValue > 50) {
       numericValue = 50;
       toast({ title: "Limit Reached", description: "Maximum 50 questions allowed." });
@@ -59,6 +60,11 @@ export function TopicOptionsStep({ onSubmitOptions }: TopicOptionsStepProps) {
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (numQuestions < 5) {
+      toast({ title: "Invalid Input", description: "Minimum 5 questions required.", variant: "destructive" });
+      setNumQuestions(5); // Ensure it's at least 5 before submitting
+      return;
+    }
     onSubmitOptions({ numQuestions, difficultyLevel, preferredLanguage });
   };
 
@@ -70,7 +76,7 @@ export function TopicOptionsStep({ onSubmitOptions }: TopicOptionsStepProps) {
             Topic Generation Options
         </CardTitle>
         <CardDescription className="text-center">
-          Configure how AI should generate questions for your topic(s). (0-50 questions)
+          Configure how AI should generate questions for your topic(s). (5-50 questions)
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -82,7 +88,7 @@ export function TopicOptionsStep({ onSubmitOptions }: TopicOptionsStepProps) {
             <div className="flex items-center gap-4">
               <Slider
                 id="num-questions-topic-slider"
-                min={0} 
+                min={5} 
                 max={50}
                 step={1}
                 value={[numQuestions]}
@@ -94,7 +100,7 @@ export function TopicOptionsStep({ onSubmitOptions }: TopicOptionsStepProps) {
                 type="number"
                 value={numQuestions.toString()}
                 onChange={handleNumQuestionsInputChange}
-                placeholder="0"
+                placeholder="5"
                 className="w-20 text-center"
               />
             </div>

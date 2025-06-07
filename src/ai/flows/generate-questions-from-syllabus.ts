@@ -16,7 +16,7 @@ import {z} from 'genkit';
 
 const GenerateQuestionsFromSyllabusInputSchema = z.object({
   syllabusText: z.string().describe('The text content of the syllabus.'),
-  numQuestions: z.number().int().nonnegative().describe('The desired number of questions to generate (0 is valid).'),
+  numQuestions: z.number().int().min(5).max(50).describe('The desired number of questions to generate (5-50).'),
   difficultyLevel: z.enum(['easy', 'medium', 'hard']).describe('The desired difficulty level for the questions.'),
   preferredLanguage: z.enum(['en', 'hi']).optional().describe('If provided, the AI will prioritize generating questions in this language.'),
 });
@@ -48,12 +48,11 @@ const generateQuestionsPrompt = ai.definePrompt({
   output: {schema: GenerateQuestionsFromSyllabusOutputSchema},
   prompt: `You are an expert curriculum designer and question generator.
 Your task is to generate a set of multiple-choice questions based on the provided syllabus.
-If the number of questions to generate is 0, return an empty 'questions' array.
 
 Syllabus Text:
 {{{syllabusText}}}
 
-Number of questions to generate: {{{numQuestions}}}
+Number of questions to generate: {{{numQuestions}}} (must be between 5 and 50)
 Desired difficulty level: {{{difficultyLevel}}}
 
 {{#if preferredLanguage}}
@@ -66,7 +65,7 @@ If the syllabus is clearly in one language, generate questions in that language 
 If the syllabus language is ambiguous or mixed, and you need a language preference to proceed effectively:
   Set 'requiresLanguageChoice' to true.
   Set 'extractedLanguage' to 'mixed'.
-  You can provide an empty 'questions' array, or attempt to generate from what appears tobe the primary language if it's a clear mix.
+  You can provide an empty 'questions' array, or attempt to generate from what appears to be the primary language if it's a clear mix.
 Else (e.g., language is neither English nor Hindi, or cannot determine):
   Set 'requiresLanguageChoice' to false.
   Set 'extractedLanguage' to 'unknown'.
@@ -79,7 +78,7 @@ For each question:
 - Clearly indicate the correct answer.
 - Adhere to the specified difficulty level ({{difficultyLevel}}).
 
-Format the output according to the defined JSON schema. Ensure 'questions' is an array of {{{numQuestions}}} items (or fewer if not possible, or empty if numQuestions is 0), and all fields like 'requiresLanguageChoice' and 'extractedLanguage' are present.
+Format the output according to the defined JSON schema. Ensure 'questions' is an array of {{{numQuestions}}} items (or fewer if not possible), and all fields like 'requiresLanguageChoice' and 'extractedLanguage' are present.
   `,
   config: {
     safetySettings: [
@@ -98,13 +97,9 @@ const generateQuestionsFromSyllabusFlow = ai.defineFlow(
     outputSchema: GenerateQuestionsFromSyllabusOutputSchema,
   },
   async (input: GenerateQuestionsFromSyllabusInput): Promise<GenerateQuestionsFromSyllabusOutput> => {
-    if (input.numQuestions === 0) {
-      return {
-        questions: [],
-        requiresLanguageChoice: false,
-        extractedLanguage: input.preferredLanguage || 'unknown',
-      };
-    }
+    // The numQuestions is now validated by Zod to be between 5 and 50.
+    // The explicit check for numQuestions === 0 is no longer needed here.
+
     const {output} = await generateQuestionsPrompt(input);
 
     if (!output) {

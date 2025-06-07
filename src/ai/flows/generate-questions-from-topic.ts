@@ -22,7 +22,7 @@ const QuestionObjectSchema = z.object({
 
 const GenerateQuestionsFromTopicInputSchema = z.object({
   topic: z.string().describe('The topic(s) to generate questions about.'),
-  numQuestions: z.number().int().nonnegative().describe('The desired number of questions to generate (0 is valid).'),
+  numQuestions: z.number().int().min(5).max(50).describe('The desired number of questions to generate (5-50).'),
   difficultyLevel: z.enum(['easy', 'medium', 'hard']).describe('The desired difficulty level for the questions.'),
   preferredLanguage: z.enum(['en', 'hi']).optional().describe('If provided, the AI will prioritize generating questions in this language.'),
 });
@@ -47,10 +47,9 @@ const generateQuestionsPrompt = ai.definePrompt({
   output: {schema: GenerateQuestionsFromTopicOutputSchema},
   prompt: `You are an expert curriculum designer and question generator.
 Your task is to generate multiple-choice questions based on the provided topic(s).
-If the number of questions to generate is 0, return an empty 'questions' array.
 
 Topic(s): {{{topic}}}
-Number of questions to generate: {{{numQuestions}}}
+Number of questions to generate: {{{numQuestions}}} (must be between 5 and 50)
 Desired difficulty level: {{{difficultyLevel}}}
 
 {{#if preferredLanguage}}
@@ -72,7 +71,7 @@ For each question:
 - Ensure questions are suitable for a general audience unless the topic implies a specific one.
 - For matching questions, list items clearly. For bullet points, use standard markdown list format.
 
-Format the output according to the defined JSON schema. Ensure 'questions' is an array of {{{numQuestions}}} items (or fewer if not possible, or empty if numQuestions is 0), and all fields like 'requiresLanguageChoice' and 'extractedLanguage' are present.
+Format the output according to the defined JSON schema. Ensure 'questions' is an array of {{{numQuestions}}} items (or fewer if not possible), and all fields like 'requiresLanguageChoice' and 'extractedLanguage' are present.
   `,
   config: {
     safetySettings: [
@@ -91,13 +90,9 @@ const generateQuestionsFromTopicFlow = ai.defineFlow(
     outputSchema: GenerateQuestionsFromTopicOutputSchema,
   },
   async (input: GenerateQuestionsFromTopicInput): Promise<GenerateQuestionsFromTopicOutput> => {
-    if (input.numQuestions === 0) {
-      return {
-        questions: [],
-        requiresLanguageChoice: false,
-        extractedLanguage: input.preferredLanguage || 'en', // Default to 'en' if no preference
-      };
-    }
+    // The numQuestions is now validated by Zod to be between 5 and 50.
+    // The explicit check for numQuestions === 0 is no longer needed here.
+
     const {output} = await generateQuestionsPrompt(input);
 
     if (!output) {

@@ -24,7 +24,7 @@ interface SyllabusOptionsStepProps {
 }
 
 export function SyllabusOptionsStep({ onSubmitOptions }: SyllabusOptionsStepProps) {
-  const [numQuestions, setNumQuestions] = useState(0);
+  const [numQuestions, setNumQuestions] = useState(5); // Default to 5
   const [difficultyLevel, setDifficultyLevel] = useState<'easy' | 'medium' | 'hard'>('medium');
   const [preferredLanguage, setPreferredLanguage] = useState<'en' | 'hi' | undefined>(undefined);
   const { toast } = useToast();
@@ -37,21 +37,20 @@ export function SyllabusOptionsStep({ onSubmitOptions }: SyllabusOptionsStepProp
     const inputValue = event.target.value;
 
     if (inputValue === "") {
-      setNumQuestions(0);
+      setNumQuestions(5); // Default to 5 if empty
       return;
     }
 
     let numericValue = parseInt(inputValue, 10);
 
     if (isNaN(numericValue)) {
-      // If somehow a non-numeric string gets through (e.g. "-"), reset to 0 or current.
-      // For simplicity, if it's not empty and not a number, stick to 0.
-      setNumQuestions(0);
+      setNumQuestions(5); // Default to 5 if not a number
       return;
     }
 
-    if (numericValue < 0) {
-      numericValue = 0;
+    if (numericValue < 5) {
+      numericValue = 5;
+      toast({ title: "Limit Reached", description: "Minimum 5 questions allowed." });
     } else if (numericValue > 50) {
       numericValue = 50;
       toast({ title: "Limit Reached", description: "Maximum 50 questions allowed." });
@@ -61,7 +60,11 @@ export function SyllabusOptionsStep({ onSubmitOptions }: SyllabusOptionsStepProp
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    // numQuestions is already validated by the input change handler
+    if (numQuestions < 5) {
+      toast({ title: "Invalid Input", description: "Minimum 5 questions required.", variant: "destructive" });
+      setNumQuestions(5); // Ensure it's at least 5 before submitting
+      return;
+    }
     onSubmitOptions({ numQuestions, difficultyLevel, preferredLanguage });
   };
 
@@ -73,7 +76,7 @@ export function SyllabusOptionsStep({ onSubmitOptions }: SyllabusOptionsStepProp
             Syllabus Generation Options
         </CardTitle>
         <CardDescription className="text-center">
-          Specify how AI should generate questions from the syllabus. (0-50 questions)
+          Specify how AI should generate questions from the syllabus. (5-50 questions)
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -85,7 +88,7 @@ export function SyllabusOptionsStep({ onSubmitOptions }: SyllabusOptionsStepProp
             <div className="flex items-center gap-4">
               <Slider
                 id="num-questions-syllabus-slider"
-                min={0}
+                min={5}
                 max={50}
                 step={1}
                 value={[numQuestions]}
@@ -97,7 +100,7 @@ export function SyllabusOptionsStep({ onSubmitOptions }: SyllabusOptionsStepProp
                 type="number"
                 value={numQuestions.toString()}
                 onChange={handleNumQuestionsInputChange}
-                placeholder="0"
+                placeholder="5"
                 className="w-20 text-center"
               />
             </div>
