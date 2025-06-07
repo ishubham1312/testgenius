@@ -39,10 +39,22 @@ export interface TestSessionDetails {
 
 export type GenerationMode = 'extract_from_document' | 'generate_from_syllabus' | 'generate_from_topic';
 
+// Lean version of QuestionType for storage in history
+export interface HistoryQuestion {
+  id: string;
+  questionText: string;
+  options: string[];
+  aiAssignedAnswer?: string | null; // Crucial for retake if AI scoring is used
+}
+
 export interface TestHistoryItem {
   id: string;
   timestamp: number;
   generationMode: GenerationMode | null;
   sourceName?: string;
   scoreSummary: ScoreSummary;
+  questions: HistoryQuestion[]; // Store questions for retake
 }
+
+
+    

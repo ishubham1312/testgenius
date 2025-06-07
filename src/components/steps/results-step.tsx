@@ -6,21 +6,19 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { CheckCircle, XCircle, RotateCcw, TimerIcon, MinusCircle } from "lucide-react";
+import { CheckCircle, XCircle, RotateCcw, TimerIcon, MinusCircle, Repeat, PlusCircle } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 
 interface ResultsStepProps {
   scoreSummary: ScoreSummary;
-  onRetakeTest: () => void;
+  onCreateNewTest: () => void;
+  onRetakeCurrentTest: () => void;
 }
 
-export function ResultsStep({ scoreSummary, onRetakeTest }: ResultsStepProps) {
+export function ResultsStep({ scoreSummary, onCreateNewTest, onRetakeCurrentTest }: ResultsStepProps) {
   const { score, totalQuestions, results, testConfiguration } = scoreSummary;
   const percentage = totalQuestions > 0 ? (score / totalQuestions) * 100 : 0;
-  // Calculate effective total possible score if negative marking is not enabled or if all questions are correct
-  // For simplicity here, we just display raw score / total questions.
-  // A more complex calculation could be: totalQuestions * 1 (for each correct)
 
   const getResultColor = (isCorrect: boolean) => {
     return isCorrect ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400";
@@ -122,12 +120,19 @@ export function ResultsStep({ scoreSummary, onRetakeTest }: ResultsStepProps) {
           </Accordion>
         </ScrollArea>
       </CardContent>
-      <CardFooter>
-        <Button onClick={onRetakeTest} className="w-full text-lg py-6" variant="outline">
-          <RotateCcw className="mr-2 h-5 w-5" />
-          Take Another Test
+      <CardFooter className="flex flex-col sm:flex-row justify-center gap-4">
+        <Button onClick={onRetakeCurrentTest} className="w-full text-lg py-3" variant="default">
+          <Repeat className="mr-2 h-5 w-5" />
+          Retake This Test
+        </Button>
+        <Button onClick={onCreateNewTest} className="w-full text-lg py-3" variant="outline">
+          <PlusCircle className="mr-2 h-5 w-5" />
+          Create New Test
         </Button>
       </CardFooter>
     </Card>
   );
 }
+
+
+    

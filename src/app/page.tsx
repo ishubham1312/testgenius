@@ -100,6 +100,14 @@ export default function TestGeniusPage() {
       generationMode,
       sourceName: sourceName || "Test",
       scoreSummary: summaryToSave,
+      // Store the questions themselves for retake functionality
+      questions: questions.map(q => ({ // Store a lean version for history
+        id: q.id,
+        questionText: q.questionText,
+        options: q.options,
+        aiAssignedAnswer: q.aiAssignedAnswer, // This is crucial for retake consistency with AI scoring
+        // userSelectedAnswer, actualCorrectAnswer, isCorrect are part of scoreSummary.results
+      })),
     };
 
     setTestHistory(prevHistory => {
@@ -112,7 +120,7 @@ export default function TestGeniusPage() {
       }
       return updatedHistory;
     });
-  }, [generationMode, currentDocumentFileName, currentSyllabusFileName, topicText, toast]);
+  }, [generationMode, currentDocumentFileName, currentSyllabusFileName, topicText, toast, questions]);
 
 
   const resetState = useCallback(() => {
@@ -184,14 +192,14 @@ export default function TestGeniusPage() {
       toast({ title: "AI Processing Error", description: (e as Error).message, variant: "destructive" });
       setIsLoading(false);
     }
-  }, [toast, processAIQuestionsOutput, setExtractedDocumentText, setCurrentStep, setError, setIsLoading]);
+  }, [toast, processAIQuestionsOutput, setExtractedDocumentText, setCurrentStep, setError, setIsLoading, setCurrentDocumentFileName]);
 
   const handleSyllabusFileProcessed = useCallback((text: string, fileName: string) => {
     setSyllabusText(text);
     setCurrentSyllabusFileName(fileName);
     setCurrentStep('syllabus_options');
     setError(null);
-  }, [setSyllabusText, setCurrentStep, setError]);
+  }, [setSyllabusText, setCurrentSyllabusFileName, setCurrentStep, setError]);
 
   const handleSyllabusOptionsSubmit = useCallback(async (options: SyllabusGenerationOptions) => {
     if (!syllabusText) {
@@ -344,7 +352,7 @@ export default function TestGeniusPage() {
           isCorrect: resultItem?.isCorrect || false,
         };
       });
-      setQuestions(updatedQuestionsWithResults);
+      setQuestions(updatedQuestionsWithResults); // These questions now include results for display
       
       const finalSummary: ScoreSummary = {
         score: aiScoreResult.score,
@@ -401,7 +409,7 @@ export default function TestGeniusPage() {
     });
     currentScore = Math.max(0, currentScore); 
     
-    setQuestions(updatedQuestionsWithResults);
+    setQuestions(updatedQuestionsWithResults); // These questions now include results for display
     const finalSummary: ScoreSummary = {
       score: currentScore,
       totalQuestions: questions.length,
@@ -418,29 +426,35 @@ export default function TestGeniusPage() {
     setCurrentStep('history_view');
   };
 
-  const handleViewHistoryItemDetails = (summary: ScoreSummary) => {
-    setScoreDetails(summary);
-    // To display correct questions with their answers, we need to reconstruct `questions` state.
-    // The summary.results have the user answer and correct answer.
-    // We need to find the original questions to get options and aiAssignedAnswer.
-    // This part is tricky if original questions aren't fully stored in history.
-    // For now, we'll pass what we have. ResultsStep might need to adapt.
-    
-    // A simplified approach: re-map results to QuestionType array.
-    // This might lose original aiAssignedAnswer if not explicitly stored.
-    const historyQuestions: QuestionType[] = summary.results.map(r => ({
-        id: crypto.randomUUID(), // New ID as original might not be available
-        questionText: r.questionText,
-        options: r.options, // Assuming options are stored in TestResultItem
-        userSelectedAnswer: r.userSelectedAnswer,
-        actualCorrectAnswer: r.actualCorrectAnswer,
-        isCorrect: r.isCorrect,
-        aiAssignedAnswer: summary.testConfiguration.isTimedTest ? null : "N/A" // AI answer not directly available, placeholder
-    }));
-    setQuestions(historyQuestions); // This might affect retake with AI if AI answers are needed.
-    setTestConfig(summary.testConfiguration); // Ensure test config matches the historical test
+  const handleViewHistoryItemDetails = (historyItem: TestHistoryItem) => {
+    setScoreDetails(historyItem.scoreSummary);
+    // Reconstruct questions from history for the results display and potential retake
+    const historyQuestions: QuestionType[] = historyItem.questions.map(hq => {
+        const resultItem = historyItem.scoreSummary.results.find(r => r.questionText === hq.questionText);
+        return {
+            ...hq, // Contains id, questionText, options, aiAssignedAnswer
+            userSelectedAnswer: resultItem?.userSelectedAnswer || null,
+            actualCorrectAnswer: resultItem?.actualCorrectAnswer || "N/A",
+            isCorrect: resultItem?.isCorrect || false,
+        };
+    });
+    setQuestions(historyQuestions);
+    setTestConfig(historyItem.scoreSummary.testConfiguration);
+    // Set generationMode if needed for retake flow, e.g., to determine scoring options if retake leads there
+    // setGenerationMode(historyItem.generationMode); // Might not be needed if retake directly goes to test
     setCurrentStep('results');
   };
+  
+  const handleRetakeTest = useCallback(() => {
+    // Questions are already in state (either from current test or loaded from history)
+    // TestConfig is also in state
+    setUserTestAnswers({}); // Clear previous answers
+    setScoreDetails(null); // Clear previous score details
+    setError(null);
+    setIsLoading(false);
+    setCurrentStep('test_configuration'); // Go to config step before taking the test again
+  }, []);
+
 
   const renderStepContent = () => {
     if (isLoading) {
@@ -523,9 +537,7 @@ export default function TestGeniusPage() {
                 </Alert>
             );
         }
-        // If coming from history, 'Retake Test' should perhaps reset to history or generation selection.
-        // For simplicity, resetState goes to the beginning.
-        return <ResultsStep scoreSummary={scoreDetails} onRetakeTest={resetState} />;
+        return <ResultsStep scoreSummary={scoreDetails} onCreateNewTest={resetState} onRetakeCurrentTest={handleRetakeTest} />;
       case 'history_view':
         return <HistoryStep history={testHistory} onViewResult={handleViewHistoryItemDetails} onTakeNewTest={resetState} />;
       default:
@@ -557,5 +569,7 @@ export default function TestGeniusPage() {
     </div>
   );
 }
+
+    
 
     
