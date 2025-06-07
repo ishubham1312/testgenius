@@ -60,7 +60,7 @@ export function TestTakingStep({ questions, onSubmitTest }: TestTakingStepProps)
       setCurrentQuestionIndex(index);
       setIsMobilePaletteOpen(false); 
     }
-  }, [questions.length]);
+  }, [questions.length, setIsMobilePaletteOpen]);
 
   const goToNextQuestion = () => {
     navigateToQuestion(currentQuestionIndex + 1);
@@ -90,7 +90,7 @@ export function TestTakingStep({ questions, onSubmitTest }: TestTakingStepProps)
   };
 
   const renderPaletteGrid = () => (
-    <div className="grid grid-cols-5 gap-2">
+    <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
       {questions.map((q, index) => (
         <Button
           key={q.id}
@@ -106,7 +106,7 @@ export function TestTakingStep({ questions, onSubmitTest }: TestTakingStepProps)
     </div>
   );
 
-  const canSubmitTest = questions.length > 0; // Button is enabled if there are questions
+  const canSubmitTest = questions.length > 0;
 
   return (
     <Card className="w-full max-w-4xl shadow-xl">
@@ -161,7 +161,8 @@ export function TestTakingStep({ questions, onSubmitTest }: TestTakingStepProps)
            )}
         </div>
 
-        <div className="hidden md:flex md:flex-shrink-0 w-full md:w-[15rem] lg:w-[18rem] order-1 md:order-2 md:border-l md:pl-4 lg:pl-6 flex-col">
+        {/* Desktop/Tablet Palette */}
+        <div className="hidden md:flex md:flex-shrink-0 md:w-[16rem] order-1 md:order-2 md:border-l md:pl-4 flex-col">
           <h4 className="text-md font-semibold mb-3 font-headline text-center">Question Palette</h4>
           <ScrollArea className="flex-grow mt-1 pr-1 min-h-[150px] md:min-h-0">
             {renderPaletteGrid()}
@@ -169,6 +170,7 @@ export function TestTakingStep({ questions, onSubmitTest }: TestTakingStepProps)
         </div>
       </CardContent>
       <CardFooter className="flex flex-col items-center gap-4 pt-6">
+        {/* Mobile Palette Trigger */}
         <div className="md:hidden w-full flex justify-center mb-2 sm:mb-0">
           <Sheet open={isMobilePaletteOpen} onOpenChange={setIsMobilePaletteOpen}>
             <SheetTrigger asChild>
@@ -215,4 +217,3 @@ export function TestTakingStep({ questions, onSubmitTest }: TestTakingStepProps)
     </Card>
   );
 }
-
