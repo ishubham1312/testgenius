@@ -36,3 +36,13 @@ export interface TestSessionDetails {
   questions: QuestionType[];
   testConfiguration: TestConfiguration;
 }
+
+export type GenerationMode = 'extract_from_document' | 'generate_from_syllabus' | 'generate_from_topic';
+
+export interface TestHistoryItem {
+  id: string;
+  timestamp: number;
+  generationMode: GenerationMode | null;
+  sourceName?: string;
+  scoreSummary: ScoreSummary;
+}

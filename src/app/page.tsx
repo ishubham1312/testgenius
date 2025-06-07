@@ -1,7 +1,7 @@
 
 "use client";
 
-import type { QuestionType, ScoreSummary, TestResultItem, TestConfiguration, TestSessionDetails } from "@/types";
+import type { QuestionType, ScoreSummary, TestResultItem, TestConfiguration, TestSessionDetails, GenerationMode, TestHistoryItem } from "@/types";
 import { useState, useCallback, useEffect } from "react";
 import { Header } from "@/components/layout/header";
 import { FileUploadStep } from "@/components/steps/file-upload-step";
@@ -16,6 +16,7 @@ import { SyllabusOptionsStep, type SyllabusGenerationOptions } from "@/component
 import { TopicInputStep } from "@/components/steps/topic-input-step";
 import { TopicOptionsStep, type TopicGenerationOptions } from "@/components/steps/topic-options-step";
 import { TestConfigurationStep } from "@/components/steps/test-configuration-step";
+import { HistoryStep } from "@/components/steps/history-step";
 import { LoadingSpinner } from "@/components/loading-spinner";
 import { useToast } from "@/hooks/use-toast";
 import { extractQuestions, type ExtractQuestionsOutput } from "@/ai/flows/extract-questions";
@@ -39,9 +40,8 @@ type AppStep =
   | 'previewing_questions'
   | 'taking_test'
   | 'awaiting_scoring_choice'
-  | 'results';
-
-export type GenerationMode = 'extract_from_document' | 'generate_from_syllabus' | 'generate_from_topic';
+  | 'results'
+  | 'history_view';
 
 
 export default function TestGeniusPage() {
@@ -49,7 +49,9 @@ export default function TestGeniusPage() {
   const [generationMode, setGenerationMode] = useState<GenerationMode | null>(null);
   
   const [extractedDocumentText, setExtractedDocumentText] = useState<string | null>(null);
+  const [currentDocumentFileName, setCurrentDocumentFileName] = useState<string | null>(null);
   const [syllabusText, setSyllabusText] = useState<string | null>(null);
+  const [currentSyllabusFileName, setCurrentSyllabusFileName] = useState<string | null>(null);
   const [syllabusOptions, setSyllabusOptions] = useState<SyllabusGenerationOptions | null>(null);
   const [topicText, setTopicText] = useState<string | null>(null);
   const [topicOptions, setTopicOptions] = useState<TopicGenerationOptions | null>(null);
@@ -67,12 +69,59 @@ export default function TestGeniusPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  const [testHistory, setTestHistory] = useState<TestHistoryItem[]>([]);
+
+  useEffect(() => {
+    try {
+      const storedHistory = localStorage.getItem('testGeniusHistory');
+      if (storedHistory) {
+        setTestHistory(JSON.parse(storedHistory));
+      }
+    } catch (e) {
+      console.error("Failed to load test history from localStorage:", e);
+      // Optionally clear corrupted history
+      // localStorage.removeItem('testGeniusHistory'); 
+    }
+  }, []);
+
+  const saveTestToHistory = useCallback((summaryToSave: ScoreSummary) => {
+    let sourceName: string | undefined = undefined;
+    if (generationMode === 'extract_from_document' && currentDocumentFileName) {
+      sourceName = currentDocumentFileName;
+    } else if (generationMode === 'generate_from_syllabus' && currentSyllabusFileName) {
+      sourceName = currentSyllabusFileName;
+    } else if (generationMode === 'generate_from_topic' && topicText) {
+      sourceName = topicText;
+    }
+
+    const newHistoryItem: TestHistoryItem = {
+      id: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+      timestamp: Date.now(),
+      generationMode,
+      sourceName: sourceName || "Test",
+      scoreSummary: summaryToSave,
+    };
+
+    setTestHistory(prevHistory => {
+      const updatedHistory = [newHistoryItem, ...prevHistory].slice(0, 20); // Keep last 20 tests
+      try {
+        localStorage.setItem('testGeniusHistory', JSON.stringify(updatedHistory));
+      } catch (e) {
+        console.error("Failed to save test history to localStorage:", e);
+        toast({ title: "History Save Error", description: "Could not save this test to history due to storage limitations.", variant: "destructive" });
+      }
+      return updatedHistory;
+    });
+  }, [generationMode, currentDocumentFileName, currentSyllabusFileName, topicText, toast]);
+
 
   const resetState = useCallback(() => {
     setCurrentStep('generation_method_selection');
     setGenerationMode(null);
     setExtractedDocumentText(null);
+    setCurrentDocumentFileName(null);
     setSyllabusText(null);
+    setCurrentSyllabusFileName(null);
     setSyllabusOptions(null);
     setTopicText(null);
     setTopicOptions(null);
@@ -115,8 +164,9 @@ export default function TestGeniusPage() {
   }, [setQuestions, setCurrentStep, setError, setIsLoading]);
 
 
-  const handleDocumentFileProcessed = useCallback(async (text: string) => {
+  const handleDocumentFileProcessed = useCallback(async (text: string, fileName: string) => {
     setExtractedDocumentText(text);
+    setCurrentDocumentFileName(fileName);
     setError(null);
     setIsLoading(true);
     try {
@@ -136,8 +186,9 @@ export default function TestGeniusPage() {
     }
   }, [toast, processAIQuestionsOutput, setExtractedDocumentText, setCurrentStep, setError, setIsLoading]);
 
-  const handleSyllabusFileProcessed = useCallback((text: string) => {
+  const handleSyllabusFileProcessed = useCallback((text: string, fileName: string) => {
     setSyllabusText(text);
+    setCurrentSyllabusFileName(fileName);
     setCurrentStep('syllabus_options');
     setError(null);
   }, [setSyllabusText, setCurrentStep, setError]);
@@ -294,13 +345,15 @@ export default function TestGeniusPage() {
         };
       });
       setQuestions(updatedQuestionsWithResults);
-
-      setScoreDetails({
+      
+      const finalSummary: ScoreSummary = {
         score: aiScoreResult.score,
         totalQuestions: aiScoreResult.totalQuestions,
         results: detailedResults,
         testConfiguration: testConfig,
-      });
+      };
+      setScoreDetails(finalSummary);
+      saveTestToHistory(finalSummary);
       setCurrentStep('results');
     } catch (e) {
       setError(`AI scoring error: ${(e as Error).message}`);
@@ -308,7 +361,7 @@ export default function TestGeniusPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [questions, userTestAnswers, testConfig, toast, setIsLoading, setError, setScoreDetails, setCurrentStep]);
+  }, [questions, userTestAnswers, testConfig, toast, setIsLoading, setError, setScoreDetails, setCurrentStep, saveTestToHistory]);
 
   const handleUploadKeyAndScore = useCallback((keyAnswers: string[]) => {
     setIsLoading(true);
@@ -349,16 +402,45 @@ export default function TestGeniusPage() {
     currentScore = Math.max(0, currentScore); 
     
     setQuestions(updatedQuestionsWithResults);
-    setScoreDetails({
+    const finalSummary: ScoreSummary = {
       score: currentScore,
       totalQuestions: questions.length,
       results: detailedResults,
       testConfiguration: testConfig,
-    });
+    };
+    setScoreDetails(finalSummary);
+    saveTestToHistory(finalSummary);
     setCurrentStep('results');
     setIsLoading(false);
-  }, [questions, userTestAnswers, testConfig, toast, setIsLoading, setError, setScoreDetails, setCurrentStep]);
+  }, [questions, userTestAnswers, testConfig, toast, setIsLoading, setError, setScoreDetails, setCurrentStep, saveTestToHistory]);
 
+  const handleViewHistory = () => {
+    setCurrentStep('history_view');
+  };
+
+  const handleViewHistoryItemDetails = (summary: ScoreSummary) => {
+    setScoreDetails(summary);
+    // To display correct questions with their answers, we need to reconstruct `questions` state.
+    // The summary.results have the user answer and correct answer.
+    // We need to find the original questions to get options and aiAssignedAnswer.
+    // This part is tricky if original questions aren't fully stored in history.
+    // For now, we'll pass what we have. ResultsStep might need to adapt.
+    
+    // A simplified approach: re-map results to QuestionType array.
+    // This might lose original aiAssignedAnswer if not explicitly stored.
+    const historyQuestions: QuestionType[] = summary.results.map(r => ({
+        id: crypto.randomUUID(), // New ID as original might not be available
+        questionText: r.questionText,
+        options: r.options, // Assuming options are stored in TestResultItem
+        userSelectedAnswer: r.userSelectedAnswer,
+        actualCorrectAnswer: r.actualCorrectAnswer,
+        isCorrect: r.isCorrect,
+        aiAssignedAnswer: summary.testConfiguration.isTimedTest ? null : "N/A" // AI answer not directly available, placeholder
+    }));
+    setQuestions(historyQuestions); // This might affect retake with AI if AI answers are needed.
+    setTestConfig(summary.testConfiguration); // Ensure test config matches the historical test
+    setCurrentStep('results');
+  };
 
   const renderStepContent = () => {
     if (isLoading) {
@@ -441,7 +523,11 @@ export default function TestGeniusPage() {
                 </Alert>
             );
         }
+        // If coming from history, 'Retake Test' should perhaps reset to history or generation selection.
+        // For simplicity, resetState goes to the beginning.
         return <ResultsStep scoreSummary={scoreDetails} onRetakeTest={resetState} />;
+      case 'history_view':
+        return <HistoryStep history={testHistory} onViewResult={handleViewHistoryItemDetails} onTakeNewTest={resetState} />;
       default:
         const exhaustiveCheck: never = currentStep; 
         return <p>Unknown step: {exhaustiveCheck}</p>;
@@ -450,7 +536,7 @@ export default function TestGeniusPage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      <Header onLogoClick={resetState} />
+      <Header onLogoClick={resetState} onHistoryClick={handleViewHistory} />
       <main className="flex-grow container mx-auto px-4 py-8 flex flex-col items-center justify-center text-center">
         {currentStep === 'generation_method_selection' && (
           <div className="mb-8">

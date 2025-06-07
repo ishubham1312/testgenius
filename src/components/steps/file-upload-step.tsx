@@ -12,7 +12,7 @@ import { extractTextFromPdf } from "@/lib/pdf-parser";
 import { UploadCloud, FileText, Loader2 } from "lucide-react";
 
 interface FileUploadStepProps {
-  onFileProcessed: (text: string) => void;
+  onFileProcessed: (text: string, fileName: string) => void;
   setIsLoadingGlobally: (isLoading: boolean) => void;
 }
 
@@ -24,7 +24,7 @@ export function FileUploadStep({ onFileProcessed, setIsLoadingGlobally }: FileUp
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
       const selectedFile = event.target.files[0];
-      const maxSizeMb = 20; // New max size in MB
+      const maxSizeMb = 20; 
       const maxSizeBytes = maxSizeMb * 1024 * 1024;
 
       if (selectedFile.type === "application/pdf" || selectedFile.type === "text/plain") {
@@ -33,12 +33,12 @@ export function FileUploadStep({ onFileProcessed, setIsLoadingGlobally }: FileUp
         } else {
           toast({ title: "File Too Large", description: `Please upload a file smaller than ${maxSizeMb}MB.`, variant: "destructive" });
           setFile(null);
-          event.target.value = ""; // Reset file input
+          event.target.value = ""; 
         }
       } else {
         toast({ title: "Invalid File Type", description: "Please upload a PDF or TXT file.", variant: "destructive" });
         setFile(null);
-        event.target.value = ""; // Reset file input
+        event.target.value = ""; 
       }
     }
   };
@@ -64,7 +64,7 @@ export function FileUploadStep({ onFileProcessed, setIsLoadingGlobally }: FileUp
       } else if (file.type === "text/plain") {
         textContent = await file.text();
       }
-      onFileProcessed(textContent);
+      onFileProcessed(textContent, file.name); // Pass file.name here
     } catch (error) {
       console.error("Error processing file:", error);
       toast({
@@ -72,12 +72,9 @@ export function FileUploadStep({ onFileProcessed, setIsLoadingGlobally }: FileUp
         description: (error as Error).message || "An unexpected error occurred.",
         variant: "destructive",
       });
-      // setIsLoadingGlobally(false) will be handled by parent if onFileProcessed doesn't transition.
-      // if an error occurs here before onFileProcessed is called, then we should set it.
        setIsLoadingGlobally(false);
     } finally {
       setIsProcessing(false);
-      // setIsLoadingGlobally(false) is generally handled by the parent component's finally block after AI processing
     }
   };
 
@@ -104,18 +101,17 @@ export function FileUploadStep({ onFileProcessed, setIsLoadingGlobally }: FileUp
               <p className="mb-2 text-sm text-muted-foreground">
                 <span className="font-semibold">Click to upload</span> or drag and drop
               </p>
-              <p className="text-xs text-muted-foreground">PDF or TXT (Max 20MB)</p> {/* Updated max size hint */}
+              <p className="text-xs text-muted-foreground">PDF or TXT (Max 20MB)</p>
               <Input
                 id="file-upload"
                 type="file"
                 accept=".pdf,.txt"
                 onChange={handleFileChange}
-                className="hidden" // Hide the default file input
+                className="hidden"
                 disabled={isProcessing}
               />
             </div>
             
-            {/* Display selected file info below the drop zone */}
             {file && (
               <p className="text-sm text-muted-foreground flex items-center">
                 <FileText className="w-4 h-4 mr-2 shrink-0" /> Selected: {file.name} ({(file.size / 1024).toFixed(2)} KB)
@@ -135,4 +131,3 @@ export function FileUploadStep({ onFileProcessed, setIsLoadingGlobally }: FileUp
     </Card>
   );
 }
-
