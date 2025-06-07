@@ -28,3 +28,17 @@ export interface TestConfiguration {
   negativeMarkingValue: number | null; // Changed from negativeMarkingEnabled: boolean
 }
 
+export interface GenerateQuestionsFromTopicInput {
+  topic: string;
+  numQuestions: number;
+  difficultyLevel: 'easy' | 'medium' | 'hard';
+}
+
+export interface GenerateQuestionsFromTopicOutput {
+  questions: {
+    question: string;
+    options: string[];
+    answer: string;
+  }[];
+}
+
