@@ -24,7 +24,7 @@ interface SyllabusOptionsStepProps {
 }
 
 export function SyllabusOptionsStep({ onSubmitOptions }: SyllabusOptionsStepProps) {
-  const [numQuestions, setNumQuestions] = useState(0); // Default to 0
+  const [numQuestions, setNumQuestions] = useState(0);
   const [difficultyLevel, setDifficultyLevel] = useState<'easy' | 'medium' | 'hard'>('medium');
   const [preferredLanguage, setPreferredLanguage] = useState<'en' | 'hi' | undefined>(undefined);
   const { toast } = useToast();
@@ -34,25 +34,34 @@ export function SyllabusOptionsStep({ onSubmitOptions }: SyllabusOptionsStepProp
   };
 
   const handleNumQuestionsInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    let value = parseInt(event.target.value, 10);
-    if (isNaN(value)) { // If input is cleared or non-numeric
-      value = 0; // Default to 0
-    } else if (value > 50) {
-      value = 50;
-      toast({ title: "Limit Reached", description: "Maximum 50 questions allowed." });
-    } else if (value < 0) { // Allow 0, prevent negative
-      value = 0;
-      toast({ title: "Input Adjusted", description: "Minimum 0 questions allowed."});
+    const inputValue = event.target.value;
+
+    if (inputValue === "") {
+      setNumQuestions(0);
+      return;
     }
-    setNumQuestions(value);
+
+    let numericValue = parseInt(inputValue, 10);
+
+    if (isNaN(numericValue)) {
+      // If somehow a non-numeric string gets through (e.g. "-"), reset to 0 or current.
+      // For simplicity, if it's not empty and not a number, stick to 0.
+      setNumQuestions(0);
+      return;
+    }
+
+    if (numericValue < 0) {
+      numericValue = 0;
+    } else if (numericValue > 50) {
+      numericValue = 50;
+      toast({ title: "Limit Reached", description: "Maximum 50 questions allowed." });
+    }
+    setNumQuestions(numericValue);
   };
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (numQuestions < 0 || numQuestions > 50) { // Check if less than 0
-        toast({ title: "Invalid Input", description: "Number of questions must be between 0 and 50.", variant: "destructive" });
-        return;
-    }
+    // numQuestions is already validated by the input change handler
     onSubmitOptions({ numQuestions, difficultyLevel, preferredLanguage });
   };
 
@@ -64,19 +73,19 @@ export function SyllabusOptionsStep({ onSubmitOptions }: SyllabusOptionsStepProp
             Syllabus Generation Options
         </CardTitle>
         <CardDescription className="text-center">
-          Specify how AI should generate questions from the syllabus.
+          Specify how AI should generate questions from the syllabus. (0-50 questions)
         </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-8">
           <div className="space-y-3">
             <Label htmlFor="num-questions-syllabus-input" className="text-base">
-              Number of Questions (0-50): <span className="text-primary font-semibold">{numQuestions}</span>
+              Number of Questions: <span className="text-primary font-semibold">{numQuestions}</span>
             </Label>
             <div className="flex items-center gap-4">
               <Slider
                 id="num-questions-syllabus-slider"
-                min={0} // Min to 0
+                min={0}
                 max={50}
                 step={1}
                 value={[numQuestions]}
@@ -86,10 +95,9 @@ export function SyllabusOptionsStep({ onSubmitOptions }: SyllabusOptionsStepProp
               <Input
                 id="num-questions-syllabus-input"
                 type="number"
-                value={numQuestions}
+                value={numQuestions.toString()}
                 onChange={handleNumQuestionsInputChange}
-                min="0" // Min to 0
-                max="50"
+                placeholder="0"
                 className="w-20 text-center"
               />
             </div>
