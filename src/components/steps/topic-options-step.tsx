@@ -1,6 +1,7 @@
 
 "use client";
 
+import type React from "react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +9,9 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
+import { Input } from "@/components/ui/input";
 import { Settings, Bot } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 export interface TopicGenerationOptions {
   numQuestions: number;
@@ -24,10 +27,31 @@ export function TopicOptionsStep({ onSubmitOptions }: TopicOptionsStepProps) {
   const [numQuestions, setNumQuestions] = useState(10);
   const [difficultyLevel, setDifficultyLevel] = useState<'easy' | 'medium' | 'hard'>('medium');
   const [preferredLanguage, setPreferredLanguage] = useState<'en' | 'hi' | undefined>(undefined);
+  const { toast } = useToast();
 
+  const handleNumQuestionsSliderChange = (value: number[]) => {
+    setNumQuestions(value[0]);
+  };
+
+  const handleNumQuestionsInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    let value = parseInt(event.target.value, 10);
+    if (isNaN(value)) {
+      value = 1; // Default to 1 if input is not a number
+    } else if (value > 50) {
+      value = 50;
+      toast({ title: "Limit Reached", description: "Maximum 50 questions allowed." });
+    } else if (value < 1) {
+      value = 1;
+    }
+    setNumQuestions(value);
+  };
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (numQuestions < 1 || numQuestions > 50) {
+        toast({ title: "Invalid Input", description: "Number of questions must be between 1 and 50.", variant: "destructive" });
+        return;
+    }
     onSubmitOptions({ numQuestions, difficultyLevel, preferredLanguage });
   };
 
@@ -45,15 +69,29 @@ export function TopicOptionsStep({ onSubmitOptions }: TopicOptionsStepProps) {
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-8">
           <div className="space-y-3">
-            <Label htmlFor="num-questions-topic" className="text-base">Number of Questions: <span className="text-primary font-semibold">{numQuestions}</span></Label>
-            <Slider
-              id="num-questions-topic"
-              min={1}
-              max={50}
-              step={1}
-              value={[numQuestions]}
-              onValueChange={(value) => setNumQuestions(value[0])}
-            />
+            <Label htmlFor="num-questions-topic-input" className="text-base">
+              Number of Questions (1-50): <span className="text-primary font-semibold">{numQuestions}</span>
+            </Label>
+            <div className="flex items-center gap-4">
+              <Slider
+                id="num-questions-topic-slider"
+                min={1}
+                max={50}
+                step={1}
+                value={[numQuestions]}
+                onValueChange={handleNumQuestionsSliderChange}
+                className="flex-1"
+              />
+              <Input
+                id="num-questions-topic-input"
+                type="number"
+                value={numQuestions}
+                onChange={handleNumQuestionsInputChange}
+                min="1"
+                max="50"
+                className="w-20 text-center"
+              />
+            </div>
           </div>
 
           <div className="space-y-3">
@@ -74,7 +112,7 @@ export function TopicOptionsStep({ onSubmitOptions }: TopicOptionsStepProps) {
           
           <div className="space-y-3">
             <Label htmlFor="language-select-topic" className="text-base">Preferred Language (Optional)</Label>
-            <Select value={preferredLanguage} onValueChange={(value: 'en' | 'hi') => setPreferredLanguage(value)}>
+            <Select value={preferredLanguage} onValueChange={(value: 'en' | 'hi' | undefined) => setPreferredLanguage(value)}>
               <SelectTrigger id="language-select-topic">
                 <SelectValue placeholder="Select language (Defaults to English)" />
               </SelectTrigger>
