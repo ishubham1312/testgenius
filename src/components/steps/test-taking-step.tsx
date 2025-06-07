@@ -29,12 +29,14 @@ export function TestTakingStep({ questions, onSubmitTest }: TestTakingStepProps)
 
   useEffect(() => {
     const answeredCount = Object.keys(userAnswers).length;
-    setProgress((answeredCount / questions.length) * 100);
+    setProgress(questions.length > 0 ? (answeredCount / questions.length) * 100 : 0);
   }, [userAnswers, questions.length]);
 
   useEffect(() => {
-    if (questions.length > 0) {
+    if (questions.length > 0 && questions[0]) {
        setViewedQuestions(prev => new Set(prev).add(questions[0].id));
+    } else if (questions.length === 0) {
+      setViewedQuestions(new Set()); // Clear if no questions
     }
   }, [questions]);
 
@@ -104,7 +106,7 @@ export function TestTakingStep({ questions, onSubmitTest }: TestTakingStepProps)
     </div>
   );
 
-  const allQuestionsAnswered = Object.keys(userAnswers).length === questions.length && questions.length > 0;
+  const canSubmitTest = Object.keys(userAnswers).length > 0;
 
   return (
     <Card className="w-full max-w-4xl shadow-xl">
@@ -159,7 +161,7 @@ export function TestTakingStep({ questions, onSubmitTest }: TestTakingStepProps)
            )}
         </div>
 
-        <div className="hidden md:flex w-full md:w-[15rem] lg:w-[18rem] order-1 md:order-2 md:border-l md:pl-4 lg:pl-6 flex-col">
+        <div className="hidden md:flex md:flex-shrink-0 w-full md:w-[15rem] lg:w-[18rem] order-1 md:order-2 md:border-l md:pl-4 lg:pl-6 flex-col">
           <h4 className="text-md font-semibold mb-3 font-headline text-center">Question Palette</h4>
           <ScrollArea className="flex-grow mt-1 pr-1 min-h-[150px] md:min-h-0">
             {renderPaletteGrid()}
@@ -185,7 +187,7 @@ export function TestTakingStep({ questions, onSubmitTest }: TestTakingStepProps)
                 <Button 
                   onClick={handleSubmit} 
                   className="w-full" 
-                  disabled={!allQuestionsAnswered}
+                  disabled={!canSubmitTest}
                 >
                   <CheckCircle className="mr-2 h-5 w-5" />
                   End Test
@@ -204,7 +206,7 @@ export function TestTakingStep({ questions, onSubmitTest }: TestTakingStepProps)
                 Next <ChevronRight className="ml-2 h-4 w-4" />
                 </Button>
             </div>
-            <Button onClick={handleSubmit} className="w-full sm:w-auto text-lg py-3 sm:py-2" disabled={!allQuestionsAnswered}>
+            <Button onClick={handleSubmit} className="w-full sm:w-auto text-lg py-3 sm:py-2" disabled={!canSubmitTest}>
                 <CheckCircle className="mr-2 h-5 w-5" />
                 Submit Test
             </Button>
@@ -213,3 +215,4 @@ export function TestTakingStep({ questions, onSubmitTest }: TestTakingStepProps)
     </Card>
   );
 }
+
