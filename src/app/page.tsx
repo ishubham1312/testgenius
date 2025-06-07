@@ -201,6 +201,7 @@ export default function TestGeniusPage() {
     setIsLoading(true);
     setCurrentStep('generating_from_topic'); 
     try {
+      // Reusing syllabus flow for topic generation: topicForGeneration acts as syllabusText
       const input: GenerateQuestionsFromSyllabusInput = { 
         syllabusText: topicForGeneration, 
         numQuestions: options.numQuestions,
@@ -236,7 +237,7 @@ export default function TestGeniusPage() {
       } else if (generationMode === 'generate_from_topic') {
          if (!topicForGeneration || !topicOptions) throw new Error("Topic or options not found.");
          currentOptions = topicOptions;
-        aiResult = await generateQuestionsFromSyllabus({ 
+        aiResult = await generateQuestionsFromSyllabus({ // Reusing syllabus flow
           syllabusText: topicForGeneration, 
           numQuestions: currentOptions.numQuestions,
           difficultyLevel: currentOptions.difficultyLevel,
@@ -399,16 +400,16 @@ export default function TestGeniusPage() {
       } else if (currentStep === 'generating_from_topic' || 
                  (currentStep === 'language_selection' && (extractedDocumentText || syllabusText || topicForGeneration)) ||
                  (generationMode === 'extract_from_document' && currentStep === 'upload_document' && extractedDocumentText) ||
-                 ((generationMode === 'generate_from_syllabus' || generationMode === 'generate_from_topic') && currentStep === 'syllabus_options' && (syllabusText || topicForGeneration) )
+                 ((generationMode === 'generate_from_syllabus' || generationMode === 'generate_from_topic') && (currentStep === 'syllabus_options' || currentStep === 'topic_options') && (syllabusText || topicForGeneration) )
       ) {
-         message = generationMode === 'generate_from_syllabus' || generationMode === 'generate_from_topic' ? "Generating questions with AI..." : "Extracting questions with AI...";
+         message = (generationMode === 'generate_from_syllabus' || generationMode === 'generate_from_topic') ? "Generating questions with AI..." : "Extracting questions with AI...";
       } else if (currentStep === 'awaiting_scoring_choice' ) { 
         message = "Scoring test with AI...";
       }
       return <LoadingSpinner message={message} />;
     }
 
-    const commonErrorSteps: AppStep[] = ['upload_document', 'syllabus_upload', 'syllabus_options', 'language_selection', 'previewing_questions', 'awaiting_scoring_choice', 'generating_from_topic', 'topic_options'];
+    const commonErrorSteps: AppStep[] = ['upload_document', 'syllabus_upload', 'syllabus_options', 'topic_input', 'topic_options', 'language_selection', 'previewing_questions', 'awaiting_scoring_choice', 'generating_from_topic'];
     if (error && commonErrorSteps.includes(currentStep) ) {
       if (currentStep === 'previewing_questions' && questions.length === 0) {
         return (
@@ -488,4 +489,3 @@ export default function TestGeniusPage() {
     </div>
   );
 }
-

@@ -1,9 +1,13 @@
 
+"use client";
+
 import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Textarea } from '@/components/ui/textarea';
+import { Brain } from 'lucide-react';
 
 interface TopicInputStepProps {
   onSubmitTopic: (topic: string) => void;
@@ -20,28 +24,32 @@ export function TopicInputStep({ onSubmitTopic }: TopicInputStepProps) {
   };
 
   return (
-    <Card className="w-full max-w-md mx-auto">
+    <Card className="w-full max-w-lg shadow-xl">
       <CardHeader>
-        <CardTitle className="text-2xl text-center">Enter Topic</CardTitle>
+        <CardTitle className="font-headline text-3xl text-center flex items-center justify-center gap-2">
+          <Brain className="h-8 w-8 text-primary" />
+          Enter Topic or Keywords
+        </CardTitle>
         <CardDescription className="text-center">
-          Provide the topic you want the test questions to be about.
+          Provide the topic(s) or keywords you want the AI to generate questions about. 
+          For multiple topics, you can list them separated by commas or new lines.
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="grid gap-4">
-          <div className="grid gap-2">
-            <Label htmlFor="topic">Topic</Label>
-            <Input
-              id="topic"
-              type="text"
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-2">
+            <Label htmlFor="topic-input" className="text-base">Topic / Keywords</Label>
+            <Textarea
+              id="topic-input"
               placeholder="e.g., Photosynthesis, World War II, JavaScript Fundamentals"
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
               required
+              className="min-h-[100px] text-base"
             />
           </div>
-          <Button type="submit" className="w-full">
-            Next
+          <Button type="submit" className="w-full text-lg py-6" disabled={!topic.trim()}>
+            Proceed to Options
           </Button>
         </form>
       </CardContent>

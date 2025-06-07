@@ -1,128 +1,87 @@
+
 "use client";
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { Slider } from "@/components/ui/slider";
+import { Settings, Bot } from "lucide-react";
 
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-
-
-const formSchema = z.object({
-  numQuestions: z
-    .number({ invalid_type_error: "Number of questions must be a number." })
-    .int("Number of questions must be an integer.")
-    .min(5, { message: "Minimum 5 questions." })
-    .max(50, { message: "Maximum 50 questions." }),
-  difficulty: z.enum(["easy", "medium", "hard"], {
-    required_error: "Please select a difficulty level.",
-  }),
-});
-
-type TopicOptionsFormValues = z.infer<typeof formSchema>;
+export interface TopicGenerationOptions {
+  numQuestions: number;
+  difficultyLevel: 'easy' | 'medium' | 'hard';
+}
 
 interface TopicOptionsStepProps {
-  onSubmitOptions: (options: TopicOptionsFormValues) => void;
+  onSubmitOptions: (options: TopicGenerationOptions) => void;
 }
 
 export function TopicOptionsStep({ onSubmitOptions }: TopicOptionsStepProps) {
-  const form = useForm<TopicOptionsFormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      numQuestions: 10,
-      difficulty: "medium",
-    },
-  });
+  const [numQuestions, setNumQuestions] = useState(10);
+  const [difficultyLevel, setDifficultyLevel] = useState<'easy' | 'medium' | 'hard'>('medium');
 
-  function onSubmit(values: TopicOptionsFormValues) {
-    onSubmitOptions(values);
-  }
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    onSubmitOptions({ numQuestions, difficultyLevel });
+  };
 
   return (
-    <div className="w-full max-w-md space-y-6">
-      <div className="text-center">
-        <h2 className="text-2xl font-bold">Test Options</h2>
-        <p className="text-muted-foreground">
-          Configure the number of questions and difficulty.
-        </p>
-      </div>
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          <FormField
-            control={form.control}
-            name="numQuestions"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Number of Questions (5-50)</FormLabel>
-                <FormControl>
-                  <Input
-                    type="number"
-                    placeholder="e.g., 10"
-                    {...field}
-                    onChange={(e) => {
-                      const value = parseInt(e.target.value, 10);
-                      field.onChange(isNaN(value) ? "" : value);
-                    }}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+    <Card className="w-full max-w-lg shadow-xl">
+      <CardHeader>
+        <CardTitle className="font-headline text-3xl text-center flex items-center justify-center gap-2">
+            <Settings className="h-8 w-8 text-primary"/>
+            Topic Generation Options
+        </CardTitle>
+        <CardDescription className="text-center">
+          Specify how you want the AI to generate questions based on your topic.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-8">
+          <div className="space-y-3">
+            <Label htmlFor="num-questions-topic" className="text-base">Number of Questions: <span className="text-primary font-semibold">{numQuestions}</span></Label>
+            <Slider
+              id="num-questions-topic"
+              min={5}
+              max={50}
+              step={1}
+              value={[numQuestions]}
+              onValueChange={(value) => setNumQuestions(value[0])}
+              className="w-full"
+            />
+          </div>
 
-          <FormField
-            control={form.control}
-            name="difficulty"
-            render={({ field }) => (
-              <FormItem className="space-y-3">
-                <FormLabel>Difficulty Level</FormLabel>
-                <FormControl>
-                  <RadioGroup
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                    className="flex flex-col space-y-1"
-                  >
-                    <FormItem className="flex items-center space-x-3 space-y-0">
-                      <FormControl>
-                        <RadioGroupItem value="easy" />
-                      </FormControl>
-                      <FormLabel className="font-normal">Easy</FormLabel>
-                    </FormItem>
-                    <FormItem className="flex items-center space-x-3 space-y-0">
-                      <FormControl>
-                        <RadioGroupItem value="medium" />
-                      </FormControl>
-                      <FormLabel className="font-normal">Medium</FormLabel>
-                    </FormItem>
-                    <FormItem className="flex items-center space-x-3 space-y-0">
-                      <FormControl>
-                        <RadioGroupItem value="hard" />
-                      </FormControl>
-                      <FormLabel className="font-normal">Hard</FormLabel>
-                    </FormItem>
-                  </RadioGroup>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <Button type="submit" className="w-full">
+          <div className="space-y-3">
+            <Label className="text-base">Difficulty Level</Label>
+            <RadioGroup
+              value={difficultyLevel}
+              onValueChange={(value: 'easy' | 'medium' | 'hard') => setDifficultyLevel(value)}
+              className="flex flex-col sm:flex-row sm:gap-4"
+            >
+              <div className="flex items-center space-x-2 p-3 border rounded-md hover:bg-accent/50 transition-colors cursor-pointer has-[input:checked]:bg-primary/10 has-[input:checked]:border-primary flex-1">
+                <RadioGroupItem value="easy" id="difficulty-topic-easy" />
+                <Label htmlFor="difficulty-topic-easy" className="cursor-pointer">Easy</Label>
+              </div>
+              <div className="flex items-center space-x-2 p-3 border rounded-md hover:bg-accent/50 transition-colors cursor-pointer has-[input:checked]:bg-primary/10 has-[input:checked]:border-primary flex-1">
+                <RadioGroupItem value="medium" id="difficulty-topic-medium" />
+                <Label htmlFor="difficulty-topic-medium" className="cursor-pointer">Medium</Label>
+              </div>
+              <div className="flex items-center space-x-2 p-3 border rounded-md hover:bg-accent/50 transition-colors cursor-pointer has-[input:checked]:bg-primary/10 has-[input:checked]:border-primary flex-1">
+                <RadioGroupItem value="hard" id="difficulty-topic-hard" />
+                <Label htmlFor="difficulty-topic-hard" className="cursor-pointer">Hard</Label>
+              </div>
+            </RadioGroup>
+          </div>
+          
+          <Button type="submit" className="w-full text-lg py-6">
+            <Bot className="mr-2 h-5 w-5" />
             Generate Questions
           </Button>
         </form>
-      </Form>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
+
