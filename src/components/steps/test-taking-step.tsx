@@ -60,7 +60,7 @@ export function TestTakingStep({ testSessionDetails, onSubmitTest }: TestTakingS
        setViewedQuestions(prev => new Set(prev).add(currentQuestion.id));
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentQuestion]); // Only currentQuestion as we mark viewed when it changes
+  }, [currentQuestion]); 
 
   // Timer logic
   useEffect(() => {
@@ -70,8 +70,7 @@ export function TestTakingStep({ testSessionDetails, onSubmitTest }: TestTakingS
       }, 1000);
       return () => clearInterval(timerId);
     } else if (timeLeft === 0 && isTimerRunning) { 
-      // This condition means time just hit 0 AND the timer was supposed to be running.
-      setIsTimerRunning(false); // Ensure timer is marked as not running before submission
+      setIsTimerRunning(false); 
       submitTestHandler();
     }
   }, [isTimerRunning, timeLeft, submitTestHandler]);
@@ -84,12 +83,12 @@ export function TestTakingStep({ testSessionDetails, onSubmitTest }: TestTakingS
   const navigateToQuestion = useCallback((index: number) => {
     if (index >= 0 && index < questions.length) {
       setCurrentQuestionIndex(index);
-      setIsPaletteOpen(false); // Close palette on navigation
+      setIsPaletteOpen(false); 
       if (questions[index] && !viewedQuestions.has(questions[index].id)) {
         setViewedQuestions(prev => new Set(prev).add(questions[index].id));
       }
     }
-  }, [questions, viewedQuestions]); // Added viewedQuestions
+  }, [questions, viewedQuestions]);
 
   const goToNextQuestion = () => {
     navigateToQuestion(currentQuestionIndex + 1);
@@ -121,7 +120,7 @@ export function TestTakingStep({ testSessionDetails, onSubmitTest }: TestTakingS
   };
 
   const QuestionPaletteContent = () => (
-    <>
+    <div className="flex flex-col h-full">
       <ScrollArea className="flex-grow mt-1 pr-1 min-h-[150px] md:min-h-0">
         <div className="grid grid-cols-5 gap-2">
           {questions.map((q, index) => (
@@ -136,7 +135,29 @@ export function TestTakingStep({ testSessionDetails, onSubmitTest }: TestTakingS
           ))}
         </div>
       </ScrollArea>
-    </>
+      <div className="mt-auto pt-4">
+        <AlertDialog>
+            <AlertDialogTrigger asChild>
+                <Button variant="outline" size="sm" className="w-full" disabled={questions.length === 0}>
+                    End Test
+                </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                <AlertDialogTitle>Are you sure you want to end the test?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    Your answers will be submitted for scoring. You cannot make any more changes.
+                    {Object.keys(userAnswers).length !== questions.length && Object.keys(userAnswers).length < questions.length && " You have unanswered questions."}
+                </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={submitTestHandler}>Submit Test</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+      </div>
+    </div>
   );
 
   return (
@@ -216,7 +237,7 @@ export function TestTakingStep({ testSessionDetails, onSubmitTest }: TestTakingS
                 <Menu className="mr-2 h-5 w-5" /> View Question Palette
               </Button>
             </SheetTrigger>
-            <SheetContent side="bottom" className="h-[60vh] flex flex-col">
+            <SheetContent side="bottom" className="h-[70vh] flex flex-col"> {/* Increased height slightly */}
               <SheetHeader>
                 <SheetTitle className="text-center">Question Palette</SheetTitle>
                  <SheetClose asChild>
@@ -247,12 +268,12 @@ export function TestTakingStep({ testSessionDetails, onSubmitTest }: TestTakingS
           <AlertDialogTrigger asChild>
             <Button variant="destructive" className="w-full sm:w-auto text-lg py-3" disabled={questions.length === 0}>
               <CheckCircle className="mr-2 h-5 w-5" />
-              End Test
+              Submit Test
             </Button>
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Are you sure you want to end the test?</AlertDialogTitle>
+              <AlertDialogTitle>Are you sure you want to submit the test?</AlertDialogTitle>
               <AlertDialogDescription>
                 Your answers will be submitted for scoring. You cannot make any more changes.
                  {Object.keys(userAnswers).length !== questions.length && Object.keys(userAnswers).length < questions.length && " You have unanswered questions."}
