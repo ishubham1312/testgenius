@@ -112,7 +112,7 @@ export function TestTakingStep({ testSessionDetails, onSubmitTest }: TestTakingS
 
     return cn(
       "h-10 w-10 flex items-center justify-center p-1 text-xs sm:text-sm rounded-md border transition-all focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-      isActive && "ring-2 ring-primary shadow-lg scale-105 z-10",
+      isActive && "ring-2 ring-border shadow-lg scale-105 z-10", // Changed ring-primary to ring-border
       isAnswered && "bg-green-100 dark:bg-green-700/30 border-green-500/70 text-green-700 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-700/40", 
       !isAnswered && isViewed && "bg-red-100 dark:bg-red-700/30 border-red-500/70 text-red-700 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-700/40",
       !isAnswered && !isViewed && "bg-card hover:bg-accent/80 text-card-foreground"
@@ -290,3 +290,4 @@ export function TestTakingStep({ testSessionDetails, onSubmitTest }: TestTakingS
     </Card>
   );
 }
+
