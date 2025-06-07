@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { SlidersHorizontal, CheckSquare } from "lucide-react";
+import { SlidersHorizontal, CheckSquare, PlayCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface TestConfigurationStepProps {
@@ -195,8 +195,8 @@ export function TestConfigurationStep({ currentConfig, onSubmitConfig }: TestCon
           </div>
           
           <Button type="submit" className="w-full text-lg py-6">
-            <CheckSquare className="mr-2 h-5 w-5" />
-            Save Configuration & Proceed
+            <PlayCircle className="mr-2 h-5 w-5" />
+            Start test
           </Button>
         </form>
       </CardContent>
