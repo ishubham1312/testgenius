@@ -442,17 +442,16 @@ export default function TestGeniusPage() {
             };
         });
     } else {
-        // Fallback for legacy items: reconstruct questions from scoreSummary.results
         toast({
             title: "Legacy History Item",
             description: "Displaying questions from saved results. Retake might use AI-determined answers as original correct answers.",
             variant: "default"
         });
         reconstructedQuestions = historyItem.scoreSummary.results.map((sr, index) => ({
-            id: `legacy-${historyItem.id}-${index}`, // Create a synthetic ID
+            id: `legacy-${historyItem.id}-${index}`, 
             questionText: sr.questionText,
-            options: sr.options || [], // TestResultItem should have options
-            aiAssignedAnswer: sr.actualCorrectAnswer, // Use the actual correct answer as the 'AI assigned' for consistency if retaken with AI
+            options: sr.options || [], 
+            aiAssignedAnswer: sr.actualCorrectAnswer, 
             userSelectedAnswer: sr.userSelectedAnswer,
             actualCorrectAnswer: sr.actualCorrectAnswer,
             isCorrect: sr.isCorrect,
@@ -569,7 +568,6 @@ export default function TestGeniusPage() {
       <main className="flex-grow container mx-auto px-4 py-8 flex flex-col items-center justify-center text-center">
         {currentStep === 'generation_method_selection' && (
           <div className="mb-8">
-            {/* Apply gradient to Hero Text */}
             <h1 className="text-4xl md:text-6xl font-bold font-headline mb-4 bg-gradient-to-r from-[#4E61E0] via-[#9461D9] to-[#E05D77] text-transparent bg-clip-text">
               TestGenius
             </h1>
@@ -579,9 +577,12 @@ export default function TestGeniusPage() {
         {renderStepContent()}
       </main>
       <footer className="py-4 text-center text-sm text-muted-foreground border-t">
- <p>&copy; {new Date().getFullYear()} TestGenius. Powered by AI.
- <span className="mx-2">|</span> 
- <a href="mailto:ishubham1312@gmail.com" className="underline hover:text-primary transition-colors">Contact Developer</a></p>
+        <div>
+          <p>&copy; {new Date().getFullYear()} TestGenius. Powered by AI.</p>
+          <p>
+            <a href="mailto:ishubham1312@gmail.com" className="underline hover:text-primary transition-colors">Contact Developer</a>
+          </p>
+        </div>
       </footer>
     </div>
   );
