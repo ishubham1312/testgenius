@@ -106,7 +106,7 @@ export function TestTakingStep({ questions, onSubmitTest }: TestTakingStepProps)
     </div>
   );
 
-  const canSubmitTest = Object.keys(userAnswers).length > 0;
+  const canSubmitTest = questions.length > 0; // Button is enabled if there are questions
 
   return (
     <Card className="w-full max-w-4xl shadow-xl">
