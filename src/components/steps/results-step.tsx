@@ -92,12 +92,12 @@ export function ResultsStep({ scoreSummary, onCreateNewTest, onRetakeCurrentTest
                   </span>
                 </AccordionTrigger>
                 <AccordionContent className="space-y-3 pl-6">
-                  <p><strong>Your Answer:</strong> <span style={{ whiteSpace: 'pre-line' }} className={result.userSelectedAnswer === result.actualCorrectAnswer ? "text-green-700 dark:text-green-300" : "text-red-700 dark:text-red-300"}>{result.userSelectedAnswer || "Not Answered"}</span></p>
-                  <p><strong>Correct Answer:</strong> <span style={{ whiteSpace: 'pre-line' }} className="text-blue-600 dark:text-blue-400">{result.actualCorrectAnswer}</span></p>
+                  <p className="text-left"><strong>Your Answer:</strong> <span style={{ whiteSpace: 'pre-line' }} className={result.userSelectedAnswer === result.actualCorrectAnswer ? "text-green-700 dark:text-green-300" : "text-red-700 dark:text-red-300"}>{result.userSelectedAnswer || "Not Answered"}</span></p>
+                  <p className="text-left"><strong>Correct Answer:</strong> <span style={{ whiteSpace: 'pre-line' }} className="text-blue-600 dark:text-blue-400">{result.actualCorrectAnswer}</span></p>
                   
-                  <div className="mt-2">
+                  <div className="mt-2 text-left">
                     <p className="text-sm font-medium mb-1">Options:</p>
-                    <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+                    <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1 text-left">
                       {result.options.map((opt, optIndex) => (
                         <li key={optIndex}
                           style={{ whiteSpace: 'pre-line' }}
