@@ -268,10 +268,10 @@ export default function TestGeniusPage() {
         questions: questions.map(q => ({
           question: q.questionText,
           options: q.options,
-          answer: q.aiAssignedAnswer || null, // AI might not have assigned one if extracting
+          answer: q.aiAssignedAnswer || null, 
           userAnswer: userTestAnswers[q.id] || null,
         } as AIScoreQuestion)),
-        testConfiguration: testConfig, // Pass test config for negative marking
+        testConfiguration: testConfig,
       };
       
       const aiScoreResult = await scoreTestWithAI(aiScoreInput);
@@ -296,7 +296,7 @@ export default function TestGeniusPage() {
       setQuestions(updatedQuestionsWithResults);
 
       setScoreDetails({
-        score: aiScoreResult.score, // Score is now calculated by the AI flow considering negative marking
+        score: aiScoreResult.score,
         totalQuestions: aiScoreResult.totalQuestions,
         results: detailedResults,
         testConfiguration: testConfig,
@@ -330,8 +330,8 @@ export default function TestGeniusPage() {
       
       let questionScore = 0;
       if (isCorrect) {
-        questionScore = 1; // Assume 1 point per correct answer
-      } else if (testConfig.enableNegativeMarking && userAnswer !== null) { // Negative mark only if answered incorrectly
+        questionScore = 1; 
+      } else if (testConfig.enableNegativeMarking && userAnswer !== null) { 
         questionScore = -testConfig.negativeMarkValue;
       }
       currentScore += questionScore;
@@ -346,7 +346,7 @@ export default function TestGeniusPage() {
 
       return { ...q, userSelectedAnswer: userAnswer, actualCorrectAnswer: correctAnswer, isCorrect: isCorrect };
     });
-    currentScore = Math.max(0, currentScore); // Ensure score doesn't go below 0
+    currentScore = Math.max(0, currentScore); 
     
     setQuestions(updatedQuestionsWithResults);
     setScoreDetails({
@@ -425,7 +425,12 @@ export default function TestGeniusPage() {
         const testSessionDetails: TestSessionDetails = { questions, testConfiguration: testConfig };
         return <TestTakingStep testSessionDetails={testSessionDetails} onSubmitTest={handleSubmitTest} />;
       case 'awaiting_scoring_choice':
-        return <ScoringOptionsStep onScoreWithAI={handleScoreWithAI} onUploadKeyAndScore={handleUploadKeyAndScore} setIsLoadingGlobally={setIsLoading} />;
+        return <ScoringOptionsStep 
+                  onScoreWithAI={handleScoreWithAI} 
+                  onUploadKeyAndScore={handleUploadKeyAndScore} 
+                  setIsLoadingGlobally={setIsLoading}
+                  generationMode={generationMode}
+                />;
       case 'results':
         if (!scoreDetails) {
              return (
@@ -455,3 +460,5 @@ export default function TestGeniusPage() {
     </div>
   );
 }
+
+    

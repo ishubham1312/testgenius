@@ -1,3 +1,4 @@
+
 "use client";
 
 import type React from "react";
@@ -8,14 +9,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Bot, Upload, FileText, Loader2 } from "lucide-react";
+import type { GenerationMode } from "@/app/page";
 
 interface ScoringOptionsStepProps {
   onScoreWithAI: () => void;
   onUploadKeyAndScore: (answers: string[]) => void;
   setIsLoadingGlobally: (isLoading: boolean) => void;
+  generationMode: GenerationMode | null;
 }
 
-export function ScoringOptionsStep({ onScoreWithAI, onUploadKeyAndScore, setIsLoadingGlobally }: ScoringOptionsStepProps) {
+export function ScoringOptionsStep({ 
+  onScoreWithAI, 
+  onUploadKeyAndScore, 
+  setIsLoadingGlobally, 
+  generationMode 
+}: ScoringOptionsStepProps) {
   const [keyFile, setKeyFile] = useState<File | null>(null);
   const [isProcessingKey, setIsProcessingKey] = useState(false);
   const { toast } = useToast();
@@ -32,7 +40,7 @@ export function ScoringOptionsStep({ onScoreWithAI, onUploadKeyAndScore, setIsLo
           variant: "destructive",
         });
         setKeyFile(null);
-        event.target.value = ""; // Reset file input
+        event.target.value = ""; 
       }
     }
   };
@@ -59,7 +67,7 @@ export function ScoringOptionsStep({ onScoreWithAI, onUploadKeyAndScore, setIsLo
         if (!Array.isArray(answers) || !answers.every(ans => typeof ans === 'string')) {
           throw new Error("JSON key must be an array of strings.");
         }
-      } else { // text/plain
+      } else { 
         answers = fileContent.split('\n').map(line => line.trim()).filter(line => line.length > 0);
       }
       
@@ -72,10 +80,10 @@ export function ScoringOptionsStep({ onScoreWithAI, onUploadKeyAndScore, setIsLo
         description: (error as Error).message || "Please ensure the file is correctly formatted.",
         variant: "destructive",
       });
-      setIsLoadingGlobally(false); // Ensure loading is stopped on error
+      setIsLoadingGlobally(false); 
     } finally {
       setIsProcessingKey(false);
-      // setIsLoadingGlobally(false) will be handled by the parent component after onUploadKeyAndScore completes.
+      
     }
   };
   
@@ -84,12 +92,16 @@ export function ScoringOptionsStep({ onScoreWithAI, onUploadKeyAndScore, setIsLo
     onScoreWithAI();
   }
 
+  const showUploadKeyOption = generationMode === 'extract_from_document';
+
   return (
     <Card className="w-full max-w-lg shadow-xl">
       <CardHeader>
         <CardTitle className="font-headline text-3xl text-center">Choose Scoring Method</CardTitle>
         <CardDescription className="text-center">
-          How would you like to score your test?
+          {showUploadKeyOption 
+            ? "How would you like to score your test?" 
+            : "The AI will score your test based on the generated questions."}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -98,47 +110,53 @@ export function ScoringOptionsStep({ onScoreWithAI, onUploadKeyAndScore, setIsLo
           Score with AI
         </Button>
         
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t" />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-background px-2 text-muted-foreground">
-              Or
-            </span>
-          </div>
-        </div>
+        {showUploadKeyOption && (
+          <>
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">
+                  Or
+                </span>
+              </div>
+            </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="key-file-upload" className="text-base">Upload Answer Key (TXT or JSON)</Label>
-          <div className="flex items-center space-x-2">
-            <Input
-              id="key-file-upload"
-              type="file"
-              accept=".txt,.json"
-              onChange={handleKeyFileChange}
-              className="cursor-pointer file:text-primary file:font-semibold hover:file:bg-primary/10"
-              disabled={isProcessingKey}
-            />
-          </div>
-           {keyFile && (
-              <p className="text-sm text-muted-foreground flex items-center">
-                <FileText className="w-4 h-4 mr-2 shrink-0" /> Selected: {keyFile.name}
-              </p>
-            )}
-        </div>
-        <Button onClick={handleUploadKey} className="w-full text-lg py-6" variant="outline" disabled={!keyFile || isProcessingKey}>
-           {isProcessingKey ? (
-              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-            ) : (
-              <Upload className="mr-2 h-5 w-5" />
-            )}
-          {isProcessingKey ? "Processing Key..." : "Upload Key & Score"}
-        </Button>
-        <p className="text-xs text-muted-foreground text-center">
-          For TXT files, provide one answer per line. For JSON, provide an array of strings. Answers should be in the same order as the questions.
-        </p>
+            <div className="space-y-2">
+              <Label htmlFor="key-file-upload" className="text-base">Upload Answer Key (TXT or JSON)</Label>
+              <div className="flex items-center space-x-2">
+                <Input
+                  id="key-file-upload"
+                  type="file"
+                  accept=".txt,.json"
+                  onChange={handleKeyFileChange}
+                  className="cursor-pointer file:text-primary file:font-semibold hover:file:bg-primary/10"
+                  disabled={isProcessingKey}
+                />
+              </div>
+              {keyFile && (
+                  <p className="text-sm text-muted-foreground flex items-center">
+                    <FileText className="w-4 h-4 mr-2 shrink-0" /> Selected: {keyFile.name}
+                  </p>
+                )}
+            </div>
+            <Button onClick={handleUploadKey} className="w-full text-lg py-6" variant="outline" disabled={!keyFile || isProcessingKey}>
+              {isProcessingKey ? (
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                ) : (
+                  <Upload className="mr-2 h-5 w-5" />
+                )}
+              {isProcessingKey ? "Processing Key..." : "Upload Key & Score"}
+            </Button>
+            <p className="text-xs text-muted-foreground text-center">
+              For TXT files, provide one answer per line. For JSON, provide an array of strings. Answers should be in the same order as the questions.
+            </p>
+          </>
+        )}
       </CardContent>
     </Card>
   );
 }
+
+    
