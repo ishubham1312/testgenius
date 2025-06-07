@@ -1,7 +1,7 @@
 
 "use client";
 
-import type { TestHistoryItem, ScoreSummary, GenerationMode } from "@/types";
+import type { TestHistoryItem, GenerationMode } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -10,20 +10,20 @@ import { format } from 'date-fns';
 
 interface HistoryStepProps {
   history: TestHistoryItem[];
-  onViewResult: (summary: ScoreSummary) => void;
+  onViewResult: (item: TestHistoryItem) => void;
   onTakeNewTest: () => void;
 }
 
 const getModeIcon = (mode: GenerationMode | null) => {
   switch (mode) {
     case 'extract_from_document':
-      return <FileText className="h-5 w-5 mr-2 text-primary" />;
+      return <FileText className="h-5 w-5 mr-2 text-primary shrink-0" />;
     case 'generate_from_syllabus':
-      return <BookOpenCheck className="h-5 w-5 mr-2 text-primary" />;
+      return <BookOpenCheck className="h-5 w-5 mr-2 text-primary shrink-0" />;
     case 'generate_from_topic':
-      return <Brain className="h-5 w-5 mr-2 text-primary" />;
+      return <Brain className="h-5 w-5 mr-2 text-primary shrink-0" />;
     default:
-      return <BarChart3 className="h-5 w-5 mr-2 text-primary" />;
+      return <BarChart3 className="h-5 w-5 mr-2 text-primary shrink-0" />;
   }
 };
 
@@ -72,11 +72,11 @@ export function HistoryStep({ history, onViewResult, onTakeNewTest }: HistorySte
                 <CardHeader className="pb-3">
                   <CardTitle className="text-xl flex items-center">
                     {getModeIcon(item.generationMode)}
-                    {item.sourceName || getModeText(item.generationMode)}
+                    <span className="truncate min-w-0 flex-1">{item.sourceName || getModeText(item.generationMode)}</span>
                   </CardTitle>
                   <CardDescription className="flex items-center text-xs pt-1">
-                    <CalendarDays className="h-3 w-3 mr-1.5" />
-                    {format(new Date(item.timestamp), "PPpp")}
+                    <CalendarDays className="h-3 w-3 mr-1.5 shrink-0" />
+                    <span className="truncate min-w-0 flex-1">{format(new Date(item.timestamp), "PPpp")}</span>
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="flex justify-between items-center pb-4">
@@ -86,7 +86,7 @@ export function HistoryStep({ history, onViewResult, onTakeNewTest }: HistorySte
                         {item.scoreSummary.score.toFixed(2)} / {item.scoreSummary.totalQuestions}
                      </p>
                   </div>
-                  <Button onClick={() => onViewResult(item.scoreSummary)} variant="outline" size="sm">
+                  <Button onClick={() => onViewResult(item)} variant="outline" size="sm">
                     View Details <ChevronRight className="ml-1 h-4 w-4" />
                   </Button>
                 </CardContent>
