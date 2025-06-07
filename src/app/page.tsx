@@ -29,7 +29,7 @@ type AppStep =
   | 'syllabus_options'
   | 'language_selection'
   | 'previewing_questions'
-  | 'test_configuration' // New step
+  | 'test_configuration'
   | 'taking_test'
   | 'awaiting_scoring_choice'
   | 'results';
@@ -47,7 +47,7 @@ export default function TestGeniusPage() {
   const [scoreDetails, setScoreDetails] = useState<ScoreSummary | null>(null);
   const [testConfiguration, setTestConfiguration] = useState<TestConfiguration>({
     timerMinutes: null,
-    negativeMarkingEnabled: false,
+    negativeMarkingValue: null, // Updated
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -62,7 +62,7 @@ export default function TestGeniusPage() {
     setQuestions([]);
     setUserTestAnswers({});
     setScoreDetails(null);
-    setTestConfiguration({ timerMinutes: null, negativeMarkingEnabled: false });
+    setTestConfiguration({ timerMinutes: null, negativeMarkingValue: null }); // Updated
     setIsLoading(false);
     setError(null);
   }, []);
@@ -251,7 +251,7 @@ export default function TestGeniusPage() {
           userAnswer: userTestAnswers[q.id] || null,
         } as AIScoreQuestion)),
       };
-      // TODO: If testConfiguration.negativeMarkingEnabled is true,
+      // TODO: If testConfiguration.negativeMarkingValue is not null,
       // the prompt for scoreTestWithAI might need to be adjusted or client-side score adjustment needed.
       // For now, it scores normally.
       const aiScoreResult = await scoreTestWithAI(aiScoreInput);
@@ -305,7 +305,7 @@ export default function TestGeniusPage() {
       const correctAnswer = keyAnswers[index];
       const userAnswer = userTestAnswers[q.id] || null;
       const isCorrect = userAnswer === correctAnswer;
-      // TODO: Adjust score based on testConfiguration.negativeMarkingEnabled if handling client-side.
+      // TODO: Adjust score based on testConfiguration.negativeMarkingValue if handling client-side.
       if (isCorrect) score++;
       
       detailedResults.push({
@@ -420,3 +420,4 @@ export default function TestGeniusPage() {
     </div>
   );
 }
+

@@ -2,55 +2,123 @@
 "use client";
 
 import type { TestConfiguration } from "@/types";
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { CheckCircle, Clock, MinusCircle } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface TestConfigurationStepProps {
   currentConfig: TestConfiguration;
   onSubmit: (config: TestConfiguration) => void;
 }
 
+const timerOptions = [
+  { value: "none", label: "No Timer" },
+  { value: "15", label: "15 minutes" },
+  { value: "30", label: "30 minutes" },
+  { value: "45", label: "45 minutes" },
+  { value: "60", label: "60 minutes" },
+  { value: "120", label: "2 hours" },
+  { value: "custom", label: "Custom" },
+];
+
 export function TestConfigurationStep({ currentConfig, onSubmit }: TestConfigurationStepProps) {
-  const [timerMinutes, setTimerMinutes] = useState<string>(
-    currentConfig.timerMinutes === null ? "" : String(currentConfig.timerMinutes)
+  const [selectedTimerOption, setSelectedTimerOption] = useState<string>(() => {
+    if (currentConfig.timerMinutes === null) return "none";
+    const foundOption = timerOptions.find(opt => opt.value === String(currentConfig.timerMinutes));
+    return foundOption ? foundOption.value : "custom";
+  });
+
+  const [customTimerMinutes, setCustomTimerMinutes] = useState<string>(
+    currentConfig.timerMinutes !== null && !timerOptions.find(opt => opt.value === String(currentConfig.timerMinutes))
+      ? String(currentConfig.timerMinutes)
+      : ""
   );
-  const [negativeMarkingEnabled, setNegativeMarkingEnabled] = useState<boolean>(currentConfig.negativeMarkingEnabled);
+  
+  const [isNegativeMarkingEnabled, setIsNegativeMarkingEnabled] = useState<boolean>(currentConfig.negativeMarkingValue !== null);
+  const [negativeMarkingValueInput, setNegativeMarkingValueInput] = useState<string>(
+    currentConfig.negativeMarkingValue === null ? "0.25" : String(currentConfig.negativeMarkingValue)
+  );
+
   const [timerError, setTimerError] = useState<string | null>(null);
+  const [negativeMarkingError, setNegativeMarkingError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (selectedTimerOption !== "custom") {
+      setCustomTimerMinutes("");
+      setTimerError(null);
+    }
+  }, [selectedTimerOption]);
+
+  useEffect(() => {
+     if (!isNegativeMarkingEnabled) {
+        setNegativeMarkingError(null);
+     }
+  }, [isNegativeMarkingEnabled]);
+
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     
-    let parsedTimerMinutes: number | null = null;
-    if (timerMinutes.trim() !== "") {
-      parsedTimerMinutes = parseInt(timerMinutes, 10);
-      if (isNaN(parsedTimerMinutes) || parsedTimerMinutes <= 0) {
+    let finalTimerMinutes: number | null = null;
+    if (selectedTimerOption === "custom") {
+      if (customTimerMinutes.trim() === "") {
+        setTimerError("Custom timer value cannot be empty.");
+        return;
+      }
+      finalTimerMinutes = parseInt(customTimerMinutes, 10);
+      if (isNaN(finalTimerMinutes) || finalTimerMinutes <= 0) {
         setTimerError("Timer must be a positive number of minutes.");
         return;
       }
-       if (parsedTimerMinutes > 720) { // 12 hours limit
-        setTimerError("Timer cannot exceed 720 minutes (12 hours).");
+      if (finalTimerMinutes > 1440) { // 24 hours limit
+        setTimerError("Timer cannot exceed 1440 minutes (24 hours).");
+        return;
+      }
+    } else if (selectedTimerOption !== "none") {
+      finalTimerMinutes = parseInt(selectedTimerOption, 10);
+    }
+    setTimerError(null);
+
+    let finalNegativeMarkingValue: number | null = null;
+    if (isNegativeMarkingEnabled) {
+      if (negativeMarkingValueInput.trim() === "") {
+        setNegativeMarkingError("Negative marking value cannot be empty.");
+        return;
+      }
+      finalNegativeMarkingValue = parseFloat(negativeMarkingValueInput);
+      if (isNaN(finalNegativeMarkingValue) || finalNegativeMarkingValue <= 0) {
+        setNegativeMarkingError("Negative marking value must be a positive number.");
+        return;
+      }
+      if (finalNegativeMarkingValue > 100) { // Arbitrary upper limit
+        setNegativeMarkingError("Negative marking value seems too high.");
         return;
       }
     }
-    setTimerError(null);
-    onSubmit({ timerMinutes: parsedTimerMinutes, negativeMarkingEnabled });
+    setNegativeMarkingError(null);
+
+    onSubmit({ timerMinutes: finalTimerMinutes, negativeMarkingValue: finalNegativeMarkingValue });
   };
 
-  const handleTimerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCustomTimerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-     // Allow empty input or positive integers
-    if (value === "" || (/^\d+$/.test(value) && parseInt(value,10) > 0) ) {
-        setTimerMinutes(value);
+    if (value === "" || /^\d+$/.test(value)) {
+        setCustomTimerMinutes(value);
         if (timerError) setTimerError(null);
-    } else if (value === "0" && timerMinutes === "") { // allow typing '0' initially if followed by other digits
-        setTimerMinutes(value);
-    } else if (value === "" && timerMinutes !== "") { // allow deleting to empty
-         setTimerMinutes("");
+    }
+  };
+  
+  const handleNegativeMarkingValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+     // Allow numbers, decimal points, and empty string
+    if (value === "" || /^\d*\.?\d*$/.test(value)) {
+        setNegativeMarkingValueInput(value);
+        if (negativeMarkingError) setNegativeMarkingError(null);
     }
   };
 
@@ -69,38 +137,73 @@ export function TestConfigurationStep({ currentConfig, onSubmit }: TestConfigura
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-8">
           <div className="space-y-3">
-            <Label htmlFor="timer-minutes" className="text-base">
-              Set Timer (in minutes)
+            <Label htmlFor="timer-select" className="text-base">
+              Set Timer
             </Label>
-            <Input
-              id="timer-minutes"
-              type="number"
-              placeholder="e.g., 60 (leave blank for no timer)"
-              value={timerMinutes}
-              onChange={handleTimerChange}
-              min="1"
-              step="1"
-              className={timerError ? "border-destructive" : ""}
-            />
+            <Select value={selectedTimerOption} onValueChange={setSelectedTimerOption}>
+              <SelectTrigger id="timer-select">
+                <SelectValue placeholder="Select timer option" />
+              </SelectTrigger>
+              <SelectContent>
+                {timerOptions.map(option => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedTimerOption === "custom" && (
+              <div className="space-y-1 pt-2">
+                <Label htmlFor="custom-timer-minutes" className="text-sm">Custom Timer (in minutes)</Label>
+                <Input
+                  id="custom-timer-minutes"
+                  type="number"
+                  placeholder="e.g., 75"
+                  value={customTimerMinutes}
+                  onChange={handleCustomTimerChange}
+                  min="1"
+                  step="1"
+                  className={timerError ? "border-destructive" : ""}
+                />
+                 <p className="text-xs text-muted-foreground">Max 1440 minutes.</p>
+              </div>
+            )}
             {timerError && <p className="text-sm text-destructive">{timerError}</p>}
-            <p className="text-xs text-muted-foreground">Leave blank or set to 0 for no timer. Max 720 minutes.</p>
           </div>
 
-          <div className="flex items-center justify-between space-y-0 rounded-lg border p-4">
-            <div className="space-y-0.5">
-                <Label htmlFor="negative-marking" className="text-base flex items-center gap-2">
-                    <MinusCircle className="h-5 w-5 text-destructive"/> Enable Negative Marking
-                </Label>
-                <p className="text-xs text-muted-foreground">
-                    If enabled, incorrect answers may deduct points. (Actual scoring logic depends on AI/key settings).
-                </p>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between rounded-lg border p-4">
+                <div className="space-y-0.5">
+                    <Label htmlFor="negative-marking-switch" className="text-base flex items-center gap-2">
+                        <MinusCircle className="h-5 w-5 text-destructive"/> Enable Negative Marking
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                        If enabled, specify marks deducted for incorrect answers.
+                    </p>
+                </div>
+                <Switch
+                id="negative-marking-switch"
+                checked={isNegativeMarkingEnabled}
+                onCheckedChange={setIsNegativeMarkingEnabled}
+                aria-label="Toggle negative marking"
+                />
             </div>
-            <Switch
-              id="negative-marking"
-              checked={negativeMarkingEnabled}
-              onCheckedChange={setNegativeMarkingEnabled}
-              aria-label="Toggle negative marking"
-            />
+            {isNegativeMarkingEnabled && (
+                 <div className="space-y-1 pt-2 pl-1">
+                    <Label htmlFor="negative-marking-value" className="text-sm">Marks per incorrect answer</Label>
+                    <Input
+                    id="negative-marking-value"
+                    type="number"
+                    placeholder="e.g., 0.25 or 1"
+                    value={negativeMarkingValueInput}
+                    onChange={handleNegativeMarkingValueChange}
+                    step="0.01"
+                    min="0.01"
+                    className={negativeMarkingError ? "border-destructive" : ""}
+                    />
+                    {negativeMarkingError && <p className="text-sm text-destructive">{negativeMarkingError}</p>}
+                 </div>
+            )}
           </div>
           
           <Button type="submit" className="w-full text-lg py-6">
@@ -112,3 +215,4 @@ export function TestConfigurationStep({ currentConfig, onSubmit }: TestConfigura
     </Card>
   );
 }
+

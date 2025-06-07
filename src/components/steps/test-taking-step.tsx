@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { CheckCircle, ChevronLeft, ChevronRight, LayoutPanelLeft, TimerIcon } from "lucide-react";
+import { CheckCircle, ChevronLeft, ChevronRight, LayoutPanelLeft, TimerIcon, AlertCircle } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetFooter } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
@@ -24,7 +24,7 @@ interface TestTakingStepProps {
 export function TestTakingStep({ questions, testConfiguration, onSubmitTest }: TestTakingStepProps) {
   const [userAnswers, setUserAnswers] = useState<Record<string, string>>({});
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [progressValue, setProgressValue] = useState(0); // Renamed to avoid conflict with Progress component
+  const [progressValue, setProgressValue] = useState(0);
   const [viewedQuestions, setViewedQuestions] = useState<Set<string>>(new Set());
   const [isMobilePaletteOpen, setIsMobilePaletteOpen] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState<number | null>(
@@ -33,7 +33,7 @@ export function TestTakingStep({ questions, testConfiguration, onSubmitTest }: T
   const [showTimeUpDialog, setShowTimeUpDialog] = useState(false);
 
   const currentQuestion = questions[currentQuestionIndex];
-  const canSubmitTest = questions.length > 0;
+  const canSubmitTest = questions.length > 0; // Submit button is always enabled if there are questions
 
   const handleSubmit = useCallback(() => {
     setIsMobilePaletteOpen(false); 
@@ -46,7 +46,6 @@ export function TestTakingStep({ questions, testConfiguration, onSubmitTest }: T
 
     if (timeRemaining <= 0) {
       setShowTimeUpDialog(true);
-      // Auto-submit handled by dialog action
       return;
     }
 
@@ -55,7 +54,7 @@ export function TestTakingStep({ questions, testConfiguration, onSubmitTest }: T
     }, 1000);
 
     return () => clearInterval(timerId);
-  }, [timeRemaining, handleSubmit]);
+  }, [timeRemaining]);
   
   const handleTimeUpSubmit = () => {
     setShowTimeUpDialog(false);
@@ -96,7 +95,7 @@ export function TestTakingStep({ questions, testConfiguration, onSubmitTest }: T
       setCurrentQuestionIndex(index);
       setIsMobilePaletteOpen(false); 
     }
-  }, [questions.length, setIsMobilePaletteOpen]);
+  }, [questions.length]);
 
   const goToNextQuestion = () => {
     navigateToQuestion(currentQuestionIndex + 1);
@@ -164,7 +163,11 @@ export function TestTakingStep({ questions, testConfiguration, onSubmitTest }: T
         </div>
         <CardDescription className="text-center">
           Answer the questions to the best of your ability.
-          {testConfiguration.negativeMarkingEnabled && <span className="block text-destructive text-sm font-medium mt-1">Negative marking is enabled for this test.</span>}
+          {testConfiguration.negativeMarkingValue !== null && (
+            <span className="block text-destructive text-sm font-medium mt-1">
+              Negative marking is enabled: {testConfiguration.negativeMarkingValue} marks per incorrect answer.
+            </span>
+          )}
         </CardDescription>
         <div className="pt-2">
           <Progress value={progressValue} className="w-full" />
@@ -280,3 +283,4 @@ export function TestTakingStep({ questions, testConfiguration, onSubmitTest }: T
     </>
   );
 }
+

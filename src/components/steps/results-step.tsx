@@ -43,10 +43,10 @@ export function ResultsStep({ scoreSummary, testConfiguration, onRetakeTest }: R
                     <span>Timer: {testConfiguration.timerMinutes} min</span>
                 </div>
             )}
-            {testConfiguration.negativeMarkingEnabled && (
+            {testConfiguration.negativeMarkingValue !== null && (
                 <div className="flex items-center gap-1 text-destructive">
                     <AlertCircle className="h-4 w-4" />
-                    <span>Negative Marking was ON</span>
+                    <span>Negative Marking: {testConfiguration.negativeMarkingValue} per wrong answer</span>
                 </div>
             )}
         </div>
@@ -100,3 +100,4 @@ export function ResultsStep({ scoreSummary, testConfiguration, onRetakeTest }: R
     </Card>
   );
 }
+

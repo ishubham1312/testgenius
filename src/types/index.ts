@@ -25,5 +25,6 @@ export interface ScoreSummary {
 
 export interface TestConfiguration {
   timerMinutes: number | null;
-  negativeMarkingEnabled: boolean;
+  negativeMarkingValue: number | null; // Changed from negativeMarkingEnabled: boolean
 }
+
