@@ -1,7 +1,7 @@
 
 "use client";
 
-import type { QuestionType, ScoreSummary, TestResultItem } from "@/types";
+import type { QuestionType, ScoreSummary, TestResultItem, TestConfiguration } from "@/types";
 import { useState, useCallback, useEffect } from "react";
 import { Header } from "@/components/layout/header";
 import { FileUploadStep } from "@/components/steps/file-upload-step";
@@ -13,36 +13,55 @@ import { LanguageSelectionStep } from "@/components/steps/language-selection-ste
 import { GenerationMethodStep } from "@/components/steps/generation-method-step";
 import { SyllabusUploadStep } from "@/components/steps/syllabus-upload-step";
 import { SyllabusOptionsStep, type SyllabusGenerationOptions } from "@/components/steps/syllabus-options-step";
+import { TopicInputStep } from "@/components/steps/topic-input-step";
+import { TopicOptionsStep, type TopicGenerationOptions } from "@/components/steps/topic-options-step";
+import { TestConfigurationStep } from "@/components/steps/test-configuration-step";
 import { LoadingSpinner } from "@/components/loading-spinner";
 import { useToast } from "@/hooks/use-toast";
 import { extractQuestions, type ExtractQuestionsOutput } from "@/ai/flows/extract-questions";
 import { generateQuestionsFromSyllabus, type GenerateQuestionsFromSyllabusInput, type GenerateQuestionsFromSyllabusOutput } from "@/ai/flows/generate-questions-from-syllabus";
+import { generateQuestionsFromTopic, type GenerateQuestionsFromTopicInput, type GenerateQuestionsFromTopicOutput } from "@/ai/flows/generate-questions-from-topic";
 import { scoreTestWithAI, type ScoreTestWithAIInput, type Question as AIScoreQuestion } from "@/ai/flows/score-test";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertTriangle } from "lucide-react";
 
 type AppStep = 
   | 'generation_method_selection'
-  | 'upload_document' // Renamed from 'upload' for clarity
+  | 'upload_document'
   | 'syllabus_upload'
   | 'syllabus_options'
+  | 'topic_input'
+  | 'topic_options'
   | 'language_selection'
+  | 'test_configuration'
   | 'previewing_questions'
   | 'taking_test'
   | 'awaiting_scoring_choice'
   | 'results';
 
+export type GenerationMode = 'extract_from_document' | 'generate_from_syllabus' | 'generate_from_topic';
+
+
 export default function TestGeniusPage() {
   const [currentStep, setCurrentStep] = useState<AppStep>('generation_method_selection');
-  const [generationMode, setGenerationMode] = useState<'extract_from_document' | 'generate_from_syllabus' | null>(null);
+  const [generationMode, setGenerationMode] = useState<GenerationMode | null>(null);
   
   const [extractedDocumentText, setExtractedDocumentText] = useState<string | null>(null);
   const [syllabusText, setSyllabusText] = useState<string | null>(null);
   const [syllabusOptions, setSyllabusOptions] = useState<SyllabusGenerationOptions | null>(null);
+  const [topicText, setTopicText] = useState<string | null>(null);
+  const [topicOptions, setTopicOptions] = useState<TopicGenerationOptions | null>(null);
 
   const [questions, setQuestions] = useState<QuestionType[]>([]);
   const [userTestAnswers, setUserTestAnswers] = useState<Record<string, string>>({});
   const [scoreDetails, setScoreDetails] = useState<ScoreSummary | null>(null);
+  const [testConfig, setTestConfig] = useState<TestConfiguration>({
+    isTimedTest: false,
+    durationMinutes: 30,
+    enableNegativeMarking: false,
+    negativeMarkValue: 0.25, // Default negative mark value if enabled
+  });
+
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
@@ -53,37 +72,47 @@ export default function TestGeniusPage() {
     setExtractedDocumentText(null);
     setSyllabusText(null);
     setSyllabusOptions(null);
+    setTopicText(null);
+    setTopicOptions(null);
     setQuestions([]);
     setUserTestAnswers({});
     setScoreDetails(null);
+    setTestConfig({
+      isTimedTest: false,
+      durationMinutes: 30,
+      enableNegativeMarking: false,
+      negativeMarkValue: 0.25,
+    });
     setIsLoading(false);
     setError(null);
   }, []);
 
-  const processAIQuestionsOutput = useCallback((aiResult: ExtractQuestionsOutput | GenerateQuestionsFromSyllabusOutput) => {
+  const processAIQuestionsOutput = useCallback((aiResult: ExtractQuestionsOutput | GenerateQuestionsFromSyllabusOutput | GenerateQuestionsFromTopicOutput) => {
     if (!aiResult || typeof aiResult !== 'object' || !aiResult.questions || !Array.isArray(aiResult.questions)) {
       console.error("Invalid aiResult structure in processAIQuestionsOutput:", aiResult);
       setError("Received an unexpected data structure from AI. Cannot process questions.");
+      setIsLoading(false);
       return;
     }
 
     if (aiResult.questions.length === 0) {
-      setError("AI could not extract or generate any questions based on the current settings. Please try different options, a different file, or ensure the content has clear multiple-choice questions in the selected language.");
+      setError("AI could not extract or generate any questions. Please adjust your input or try different options.");
       setQuestions([]);
-      setCurrentStep('previewing_questions');
-      return;
+      // Decide where to go if no questions - maybe back to options or upload
+      // For now, let's assume we stay to show the error, then user can go back.
+    } else {
+      setError(null);
+      const formattedQuestions: QuestionType[] = aiResult.questions.map((q) => ({
+        id: crypto.randomUUID(),
+        questionText: q.question,
+        options: q.options,
+        aiAssignedAnswer: q.answer,
+      }));
+      setQuestions(formattedQuestions);
+      setCurrentStep('test_configuration'); // Proceed to test configuration after fetching questions
     }
-    
-    setError(null);
-    const formattedQuestions: QuestionType[] = aiResult.questions.map((q) => ({
-      id: crypto.randomUUID(),
-      questionText: q.question,
-      options: q.options,
-      aiAssignedAnswer: q.answer,
-    }));
-    setQuestions(formattedQuestions);
-    setCurrentStep('previewing_questions');
-  }, [setQuestions, setCurrentStep, setError]);
+    setIsLoading(false);
+  }, [setQuestions, setCurrentStep, setError, setIsLoading]);
 
 
   const handleDocumentFileProcessed = useCallback(async (text: string) => {
@@ -92,22 +121,17 @@ export default function TestGeniusPage() {
     setIsLoading(true);
     try {
       const initialAiResult = await extractQuestions({ text });
-
       if (!initialAiResult || typeof initialAiResult !== 'object') {
-        console.error("AI extraction returned invalid data structure:", initialAiResult);
         throw new Error("AI service returned an unexpected data format.");
       }
-
       if (initialAiResult.requiresLanguageChoice) {
         setCurrentStep('language_selection');
       } else {
         processAIQuestionsOutput(initialAiResult);
       }
     } catch (e) {
-      console.error("AI extraction error (initial):", e);
       setError(`Failed to process document with AI: ${(e as Error).message}`);
       toast({ title: "AI Processing Error", description: (e as Error).message, variant: "destructive" });
-    } finally {
       setIsLoading(false);
     }
   }, [toast, processAIQuestionsOutput, setExtractedDocumentText, setCurrentStep, setError, setIsLoading]);
@@ -120,7 +144,7 @@ export default function TestGeniusPage() {
 
   const handleSyllabusOptionsSubmit = useCallback(async (options: SyllabusGenerationOptions) => {
     if (!syllabusText) {
-      setError("Syllabus text not found. Please re-upload the syllabus.");
+      setError("Syllabus text not found.");
       setCurrentStep('syllabus_upload');
       return;
     }
@@ -128,92 +152,100 @@ export default function TestGeniusPage() {
     setError(null);
     setIsLoading(true);
     try {
-      const input: GenerateQuestionsFromSyllabusInput = {
-        syllabusText,
-        numQuestions: options.numQuestions,
-        difficultyLevel: options.difficultyLevel,
-        // preferredLanguage: options.preferredLanguage // Assuming preferredLanguage is part of SyllabusGenerationOptions if needed
-      };
+      const input: GenerateQuestionsFromSyllabusInput = { syllabusText, ...options };
       const aiResult = await generateQuestionsFromSyllabus(input);
-
       if (!aiResult || typeof aiResult !== 'object') {
-        console.error("AI generation returned invalid data structure:", aiResult);
-        throw new Error("AI service returned an unexpected data format during generation.");
+        throw new Error("AI service returned an unexpected data format.");
       }
-      
-      if (aiResult.requiresLanguageChoice) {
-         // If AI needs language choice even for generation, go to language selection.
-         // This might happen if syllabus is very mixed and no preferred lang was set in options.
+      if (aiResult.requiresLanguageChoice && !options.preferredLanguage) {
         setCurrentStep('language_selection');
       } else {
         processAIQuestionsOutput(aiResult);
       }
-
     } catch (e) {
-      console.error("AI generation error:", e);
-      setError(`Failed to generate questions from syllabus: ${(e as Error).message}`);
+      setError(`Failed to generate from syllabus: ${(e as Error).message}`);
       toast({ title: "AI Generation Error", description: (e as Error).message, variant: "destructive" });
-    } finally {
       setIsLoading(false);
     }
   }, [syllabusText, toast, processAIQuestionsOutput, setCurrentStep, setError, setIsLoading, setSyllabusOptions]);
+
+  const handleTopicInputSubmit = useCallback((topic: string) => {
+    setTopicText(topic);
+    setCurrentStep('topic_options');
+    setError(null);
+  }, [setTopicText, setCurrentStep, setError]);
+
+  const handleTopicOptionsSubmit = useCallback(async (options: TopicGenerationOptions) => {
+    if (!topicText) {
+      setError("Topic text not found.");
+      setCurrentStep('topic_input');
+      return;
+    }
+    setTopicOptions(options);
+    setError(null);
+    setIsLoading(true);
+    try {
+      const input: GenerateQuestionsFromTopicInput = { topic: topicText, ...options };
+      const aiResult = await generateQuestionsFromTopic(input);
+      if (!aiResult || typeof aiResult !== 'object') {
+        throw new Error("AI service returned an unexpected data format.");
+      }
+      if (aiResult.requiresLanguageChoice && !options.preferredLanguage) {
+        setCurrentStep('language_selection');
+      } else {
+        processAIQuestionsOutput(aiResult);
+      }
+    } catch (e) {
+      setError(`Failed to generate from topic: ${(e as Error).message}`);
+      toast({ title: "AI Generation Error", description: (e as Error).message, variant: "destructive" });
+      setIsLoading(false);
+    }
+  }, [topicText, toast, processAIQuestionsOutput, setCurrentStep, setError, setIsLoading, setTopicOptions]);
 
 
   const handleLanguageSelected = useCallback(async (language: 'en' | 'hi') => {
     setError(null);
     setIsLoading(true);
     try {
-      let aiResult: ExtractQuestionsOutput | GenerateQuestionsFromSyllabusOutput;
+      let aiResult: ExtractQuestionsOutput | GenerateQuestionsFromSyllabusOutput | GenerateQuestionsFromTopicOutput;
 
       if (generationMode === 'extract_from_document') {
-        if (!extractedDocumentText) {
-          setError("Extracted document text not found. Please re-upload the file.");
-          setCurrentStep('upload_document');
-          setIsLoading(false);
-          return;
-        }
+        if (!extractedDocumentText) throw new Error("Document text not found.");
         aiResult = await extractQuestions({ text: extractedDocumentText, preferredLanguage: language });
       } else if (generationMode === 'generate_from_syllabus') {
-        if (!syllabusText || !syllabusOptions) {
-          setError("Syllabus text or options not found. Please restart the syllabus generation process.");
-          setCurrentStep('syllabus_upload');
-          setIsLoading(false);
-          return;
-        }
-        aiResult = await generateQuestionsFromSyllabus({ 
-          syllabusText, 
-          numQuestions: syllabusOptions.numQuestions,
-          difficultyLevel: syllabusOptions.difficultyLevel,
-          preferredLanguage: language 
-        });
+        if (!syllabusText || !syllabusOptions) throw new Error("Syllabus data incomplete.");
+        aiResult = await generateQuestionsFromSyllabus({ ...syllabusOptions, syllabusText, preferredLanguage: language });
+      } else if (generationMode === 'generate_from_topic') {
+        if (!topicText || !topicOptions) throw new Error("Topic data incomplete.");
+        aiResult = await generateQuestionsFromTopic({ ...topicOptions, topic: topicText, preferredLanguage: language });
       } else {
         throw new Error("Invalid generation mode for language selection.");
       }
       
       if (!aiResult || typeof aiResult !== 'object') {
-        console.error("AI operation with language preference returned invalid data structure:", aiResult);
         throw new Error("AI service returned an unexpected data format after language selection.");
       }
-      
       processAIQuestionsOutput(aiResult);
 
     } catch (e) {
-      console.error("AI error (with language preference):", e);
-      setError(`Failed to process with selected language: ${(e as Error).message}`);
+      setError(`Processing error with language: ${(e as Error).message}`);
       toast({ title: "AI Processing Error", description: (e as Error).message, variant: "destructive" });
-    } finally {
       setIsLoading(false);
     }
-  }, [extractedDocumentText, syllabusText, syllabusOptions, generationMode, toast, processAIQuestionsOutput, setCurrentStep, setError, setIsLoading]);
+  }, [generationMode, extractedDocumentText, syllabusText, syllabusOptions, topicText, topicOptions, toast, processAIQuestionsOutput, setCurrentStep, setError, setIsLoading]);
 
 
-  const handleGenerationMethodSelect = (method: 'extract_from_document' | 'generate_from_syllabus') => {
+  const handleGenerationMethodSelect = (method: GenerationMode) => {
     setGenerationMode(method);
-    if (method === 'extract_from_document') {
-      setCurrentStep('upload_document');
-    } else {
-      setCurrentStep('syllabus_upload');
-    }
+    if (method === 'extract_from_document') setCurrentStep('upload_document');
+    else if (method === 'generate_from_syllabus') setCurrentStep('syllabus_upload');
+    else if (method === 'generate_from_topic') setCurrentStep('topic_input');
+    setError(null);
+  };
+
+  const handleTestConfigurationSubmit = (config: TestConfiguration) => {
+    setTestConfig(config);
+    setCurrentStep('previewing_questions');
     setError(null);
   };
 
@@ -240,58 +272,82 @@ export default function TestGeniusPage() {
           userAnswer: userTestAnswers[q.id] || null,
         } as AIScoreQuestion)),
       };
+      // TODO: Pass negative marking info to scoreTestWithAI if it's adapted to handle it
       const aiScoreResult = await scoreTestWithAI(aiScoreInput);
       
+      let finalScore = 0;
+      const detailedResults: TestResultItem[] = [];
+
+      aiScoreResult.results.forEach(r => {
+        let questionScore = 0;
+        if (r.isCorrect) {
+          questionScore = 1; // Assume 1 point per correct answer
+        } else if (testConfig.enableNegativeMarking && r.userAnswer !== null) { // Negative mark only if answered incorrectly
+          questionScore = -testConfig.negativeMarkValue;
+        }
+        finalScore += questionScore;
+        
+        detailedResults.push({
+          questionText: r.question,
+          userSelectedAnswer: r.userAnswer,
+          actualCorrectAnswer: r.correctAnswer,
+          isCorrect: r.isCorrect,
+          options: questions.find(q => q.questionText === r.question)?.options || [],
+        });
+      });
+       finalScore = Math.max(0, finalScore); // Ensure score doesn't go below 0
+
       const updatedQuestions = questions.map((q) => {
-        const resultItem = aiScoreResult.results.find(r => r.question === q.questionText);
+        const resultItem = detailedResults.find(r => r.questionText === q.questionText);
         return {
           ...q,
           userSelectedAnswer: userTestAnswers[q.id] || null,
-          actualCorrectAnswer: resultItem?.correctAnswer || "N/A",
+          actualCorrectAnswer: resultItem?.actualCorrectAnswer || "N/A",
           isCorrect: resultItem?.isCorrect || false,
         };
       });
       setQuestions(updatedQuestions);
 
       setScoreDetails({
-        score: aiScoreResult.score,
+        score: finalScore,
         totalQuestions: aiScoreResult.totalQuestions,
-        results: aiScoreResult.results.map(r => ({
-          questionText: r.question,
-          userSelectedAnswer: r.userAnswer,
-          actualCorrectAnswer: r.correctAnswer,
-          isCorrect: r.isCorrect,
-          options: questions.find(q => q.questionText === r.question)?.options || [],
-        })),
+        results: detailedResults,
+        testConfiguration: testConfig,
       });
       setCurrentStep('results');
     } catch (e) {
-      console.error("AI scoring error:", e);
-      setError(`Failed to score test using AI: ${(e as Error).message}`);
+      setError(`AI scoring error: ${(e as Error).message}`);
       toast({ title: "AI Scoring Error", description: (e as Error).message, variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
-  }, [questions, userTestAnswers, toast, setIsLoading, setError, setQuestions, setScoreDetails, setCurrentStep]);
+  }, [questions, userTestAnswers, testConfig, toast, setIsLoading, setError, setQuestions, setScoreDetails, setCurrentStep]);
 
   const handleUploadKeyAndScore = useCallback((keyAnswers: string[]) => {
     setIsLoading(true);
     setError(null);
     if (keyAnswers.length !== questions.length) {
-      setError(`Answer key has ${keyAnswers.length} answers, but there are ${questions.length} questions. Please ensure they match.`);
-      toast({ title: "Answer Key Mismatch", description: `Key has ${keyAnswers.length} answers, test has ${questions.length}.`, variant: "destructive" });
+      setError(`Answer key has ${keyAnswers.length} answers, but test has ${questions.length} questions.`);
+      toast({ title: "Answer Key Mismatch", variant: "destructive" });
       setIsLoading(false);
       return;
     }
 
-    let score = 0;
+    let currentScore = 0;
     const detailedResults: TestResultItem[] = [];
 
     const updatedQuestions = questions.map((q, index) => {
       const correctAnswer = keyAnswers[index];
       const userAnswer = userTestAnswers[q.id] || null;
       const isCorrect = userAnswer === correctAnswer;
-      if (isCorrect) score++;
+      
+      let questionScore = 0;
+      if (isCorrect) {
+        questionScore = 1; // Assume 1 point per correct answer
+      } else if (testConfig.enableNegativeMarking && userAnswer !== null) { // Negative mark only if answered incorrectly
+        questionScore = -testConfig.negativeMarkValue;
+      }
+      currentScore += questionScore;
       
       detailedResults.push({
         questionText: q.questionText,
@@ -301,62 +357,50 @@ export default function TestGeniusPage() {
         options: q.options,
       });
 
-      return {
-        ...q,
-        userSelectedAnswer: userAnswer,
-        actualCorrectAnswer: correctAnswer,
-        isCorrect: isCorrect,
-      };
+      return { ...q, userSelectedAnswer: userAnswer, actualCorrectAnswer: correctAnswer, isCorrect: isCorrect };
     });
+    currentScore = Math.max(0, currentScore); // Ensure score doesn't go below 0
     
     setQuestions(updatedQuestions);
     setScoreDetails({
-      score,
+      score: currentScore,
       totalQuestions: questions.length,
       results: detailedResults,
+      testConfiguration: testConfig,
     });
     setCurrentStep('results');
     setIsLoading(false);
-  }, [questions, userTestAnswers, toast, setIsLoading, setError, setQuestions, setScoreDetails, setCurrentStep]);
+  }, [questions, userTestAnswers, testConfig, toast, setIsLoading, setError, setQuestions, setScoreDetails, setCurrentStep]);
 
 
   const renderStepContent = () => {
     if (isLoading) {
       let message = "Processing...";
-      if ((currentStep === 'upload_document' && !extractedDocumentText) || (currentStep === 'syllabus_upload' && !syllabusText) ) message = "Processing file...";
-      if (
-        (currentStep === 'upload_document' || currentStep === 'syllabus_options' || currentStep === 'language_selection') && 
-        (extractedDocumentText || syllabusText) && questions.length === 0 && !error
-      ) {
-         message = generationMode === 'generate_from_syllabus' ? "Generating questions with AI..." : "Extracting questions with AI...";
+      if ((currentStep === 'upload_document' && !extractedDocumentText) || 
+          (currentStep === 'syllabus_upload' && !syllabusText) ||
+          (currentStep === 'topic_input' && !topicText)) {
+        message = "Processing file/input...";
       }
-      if (currentStep === 'awaiting_scoring_choice') message = "Scoring test with AI...";
+      if (['upload_document', 'syllabus_options', 'topic_options', 'language_selection'].includes(currentStep) && 
+          (extractedDocumentText || syllabusText || topicText) && questions.length === 0 && !error) {
+         message = "AI is working on your questions...";
+      }
+      if (currentStep === 'awaiting_scoring_choice') message = "Scoring test...";
       return <LoadingSpinner message={message} />;
     }
-
-    const commonErrorSteps: AppStep[] = ['upload_document', 'syllabus_upload', 'syllabus_options', 'language_selection', 'previewing_questions', 'awaiting_scoring_choice'];
-    if (error && commonErrorSteps.includes(currentStep) ) {
-      // Handle specific error messages for question extraction/generation failure
-      if (currentStep === 'previewing_questions' && questions.length === 0) {
-        return (
-          <Alert variant="destructive" className="w-full max-w-xl mx-auto">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Error Processing Content</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        );
-      }
-      // Generic error display for other applicable steps
-      if (currentStep !== 'previewing_questions') { // Avoid double display for previewing if questions are empty
-         return (
-            <Alert variant="destructive" className="w-full max-w-xl mx-auto">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Error</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
-            </Alert>
-        );
-      }
+    
+    const commonErrorDisplaySteps: AppStep[] = ['upload_document', 'syllabus_upload', 'syllabus_options', 'topic_input', 'topic_options', 'language_selection', 'test_configuration', 'previewing_questions', 'awaiting_scoring_choice'];
+    if (error && commonErrorDisplaySteps.includes(currentStep)) {
+      const title = (currentStep === 'previewing_questions' && questions.length === 0) ? "Error Processing Content" : "Error";
+      return (
+        <Alert variant="destructive" className="w-full max-w-xl mx-auto">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>{title}</AlertTitle>
+          <AlertDescription>{error} Please try adjusting your input or selections, or <Button variant="link" onClick={resetState} className="p-0 h-auto">start over</Button>.</AlertDescription>
+        </Alert>
+      );
     }
+
 
     switch (currentStep) {
       case 'generation_method_selection':
@@ -367,35 +411,53 @@ export default function TestGeniusPage() {
         return <SyllabusUploadStep onFileProcessed={handleSyllabusFileProcessed} setIsLoadingGlobally={setIsLoading} />;
       case 'syllabus_options':
         return <SyllabusOptionsStep onSubmitOptions={handleSyllabusOptionsSubmit} />;
+      case 'topic_input':
+        return <TopicInputStep onSubmitTopic={handleTopicInputSubmit} />;
+      case 'topic_options':
+        return <TopicOptionsStep onSubmitOptions={handleTopicOptionsSubmit} />;
       case 'language_selection':
-        return <LanguageSelectionStep onSelectLanguage={handleLanguageSelected} />;
+        return <LanguageSelectionStep onSelectLanguage={handleLanguageSelected} currentGenerationMode={generationMode} />;
+      case 'test_configuration':
+        return <TestConfigurationStep currentConfig={testConfig} onSubmitConfig={handleTestConfigurationSubmit} />;
       case 'previewing_questions':
+         if (questions.length === 0 && !isLoading) { // Handles case where AI returned no questions after loading
+            return (
+              <Alert variant="destructive" className="w-full max-w-xl mx-auto">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>No Questions Generated/Extracted</AlertTitle>
+                <AlertDescription>
+                  The AI could not generate or extract any questions based on your input. 
+                  Please <Button variant="link" onClick={() => setCurrentStep( generationMode === 'extract_from_document' ? 'upload_document' : generationMode === 'generate_from_syllabus' ? 'syllabus_upload' : 'topic_input')} className="p-0 h-auto">go back and try different options</Button> or 
+                  <Button variant="link" onClick={resetState} className="p-0 h-auto ml-1">start over</Button>.
+                </AlertDescription>
+              </Alert>
+            );
+          }
         return <QuestionPreviewStep questions={questions} onStartTest={handleStartTest} />;
       case 'taking_test':
-        return <TestTakingStep questions={questions} onSubmitTest={handleSubmitTest} />;
+        return <TestTakingStep questions={questions} onSubmitTest={handleSubmitTest} testConfiguration={testConfig} />;
       case 'awaiting_scoring_choice':
         return <ScoringOptionsStep onScoreWithAI={handleScoreWithAI} onUploadKeyAndScore={handleUploadKeyAndScore} setIsLoadingGlobally={setIsLoading} />;
       case 'results':
-        if (error && !scoreDetails) { 
+        if (!scoreDetails) {
              return (
                 <Alert variant="destructive" className="w-full max-w-xl mx-auto">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>Scoring Error</AlertTitle>
-                <AlertDescription>{error}</AlertDescription>
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>Error Displaying Results</AlertTitle>
+                  <AlertDescription>{error || "Score details not available."} Please <Button variant="link" onClick={resetState} className="p-0 h-auto">try again</Button>.</AlertDescription>
                 </Alert>
             );
         }
-        if (!scoreDetails) return <p>Error: Score details not available.</p>;
         return <ResultsStep scoreSummary={scoreDetails} onRetakeTest={resetState} />;
       default:
-        const exhaustiveCheck: never = currentStep;
+        const exhaustiveCheck: never = currentStep; // Ensures all cases are handled
         return <p>Unknown step: {exhaustiveCheck}</p>;
     }
   };
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      <Header />
+      <Header onLogoClick={resetState} />
       <main className="flex-grow container mx-auto px-4 py-8 flex flex-col items-center justify-center">
         {renderStepContent()}
       </main>

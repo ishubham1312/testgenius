@@ -10,20 +10,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { Settings, Bot } from "lucide-react";
 
-export interface SyllabusGenerationOptions {
+export interface TopicGenerationOptions {
   numQuestions: number;
   difficultyLevel: 'easy' | 'medium' | 'hard';
   preferredLanguage?: 'en' | 'hi';
 }
 
-interface SyllabusOptionsStepProps {
-  onSubmitOptions: (options: SyllabusGenerationOptions) => void;
+interface TopicOptionsStepProps {
+  onSubmitOptions: (options: TopicGenerationOptions) => void;
 }
 
-export function SyllabusOptionsStep({ onSubmitOptions }: SyllabusOptionsStepProps) {
+export function TopicOptionsStep({ onSubmitOptions }: TopicOptionsStepProps) {
   const [numQuestions, setNumQuestions] = useState(10);
   const [difficultyLevel, setDifficultyLevel] = useState<'easy' | 'medium' | 'hard'>('medium');
   const [preferredLanguage, setPreferredLanguage] = useState<'en' | 'hi' | undefined>(undefined);
+
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -35,18 +36,18 @@ export function SyllabusOptionsStep({ onSubmitOptions }: SyllabusOptionsStepProp
       <CardHeader>
         <CardTitle className="font-headline text-3xl text-center flex items-center justify-center gap-2">
             <Settings className="h-8 w-8 text-primary"/>
-            Syllabus Generation Options
+            Topic Generation Options
         </CardTitle>
         <CardDescription className="text-center">
-          Specify how AI should generate questions from the syllabus.
+          Configure how AI should generate questions for your topic(s).
         </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-8">
           <div className="space-y-3">
-            <Label htmlFor="num-questions-syllabus" className="text-base">Number of Questions: <span className="text-primary font-semibold">{numQuestions}</span></Label>
+            <Label htmlFor="num-questions-topic" className="text-base">Number of Questions: <span className="text-primary font-semibold">{numQuestions}</span></Label>
             <Slider
-              id="num-questions-syllabus"
+              id="num-questions-topic"
               min={1}
               max={50}
               step={1}
@@ -62,27 +63,27 @@ export function SyllabusOptionsStep({ onSubmitOptions }: SyllabusOptionsStepProp
               onValueChange={(value: 'easy' | 'medium' | 'hard') => setDifficultyLevel(value)}
               className="flex flex-col sm:flex-row sm:gap-4"
             >
-               {['easy', 'medium', 'hard'].map(level => (
+              {['easy', 'medium', 'hard'].map(level => (
                 <div key={level} className="flex items-center space-x-2 p-3 border rounded-md hover:bg-accent/50 transition-colors cursor-pointer has-[input:checked]:bg-primary/10 has-[input:checked]:border-primary flex-1">
-                  <RadioGroupItem value={level} id={`difficulty-syllabus-${level}`} />
-                  <Label htmlFor={`difficulty-syllabus-${level}`} className="cursor-pointer capitalize">{level}</Label>
+                  <RadioGroupItem value={level} id={`difficulty-topic-${level}`} />
+                  <Label htmlFor={`difficulty-topic-${level}`} className="cursor-pointer capitalize">{level}</Label>
                 </div>
               ))}
             </RadioGroup>
           </div>
           
           <div className="space-y-3">
-            <Label htmlFor="language-select-syllabus" className="text-base">Preferred Language (Optional)</Label>
+            <Label htmlFor="language-select-topic" className="text-base">Preferred Language (Optional)</Label>
             <Select value={preferredLanguage} onValueChange={(value: 'en' | 'hi') => setPreferredLanguage(value)}>
-              <SelectTrigger id="language-select-syllabus">
-                <SelectValue placeholder="Select language (AI will try to infer if not set)" />
+              <SelectTrigger id="language-select-topic">
+                <SelectValue placeholder="Select language (Defaults to English)" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="en">English</SelectItem>
                 <SelectItem value="hi">हिंदी (Hindi)</SelectItem>
               </SelectContent>
             </Select>
-             <p className="text-xs text-muted-foreground">If not selected, AI will try to infer from syllabus or default to its primary language detection.</p>
+            <p className="text-xs text-muted-foreground">If not selected, AI will default to English or try to infer from the topic.</p>
           </div>
 
           <Button type="submit" className="w-full text-lg py-6">

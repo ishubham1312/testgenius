@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { QuestionType } from "@/types";
@@ -15,12 +16,14 @@ interface QuestionPreviewStepProps {
 
 export function QuestionPreviewStep({ questions, onStartTest }: QuestionPreviewStepProps) {
   if (!questions || questions.length === 0) {
+    // This case should ideally be handled by the parent component (page.tsx) before rendering this step.
+    // However, as a fallback:
     return (
       <Card className="w-full max-w-2xl shadow-xl">
         <CardHeader>
-          <CardTitle className="font-headline text-3xl text-center">No Questions Extracted</CardTitle>
+          <CardTitle className="font-headline text-3xl text-center">No Questions Available</CardTitle>
           <CardDescription className="text-center">
-            The AI could not extract any questions. Please try a different file or check the content.
+            The AI could not find or generate any questions. Please go back and try different options.
           </CardDescription>
         </CardHeader>
       </Card>
@@ -30,9 +33,12 @@ export function QuestionPreviewStep({ questions, onStartTest }: QuestionPreviewS
   return (
     <Card className="w-full max-w-3xl shadow-xl">
       <CardHeader>
-        <CardTitle className="font-headline text-3xl text-center">Extracted Questions</CardTitle>
+        <CardTitle className="font-headline text-3xl text-center flex items-center justify-center gap-2">
+          <ListChecks className="h-8 w-8 text-primary"/>
+          Review Questions
+        </CardTitle>
         <CardDescription className="text-center">
-          Review the questions extracted by the AI. ({questions.length} questions found)
+          Here are the questions ({questions.length} found). Review them before starting the test.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -41,18 +47,18 @@ export function QuestionPreviewStep({ questions, onStartTest }: QuestionPreviewS
             {questions.map((q, index) => (
               <AccordionItem value={`item-${index}`} key={q.id}>
                 <AccordionTrigger className="text-left hover:no-underline">
-                  <span className="font-medium">{index + 1}. {q.questionText}</span>
+                  <span className="font-medium" style={{ whiteSpace: 'pre-line' }}>{index + 1}. {q.questionText}</span>
                 </AccordionTrigger>
                 <AccordionContent>
                   <ul className="space-y-1 list-disc list-inside pl-4 text-muted-foreground">
                     {q.options.map((opt, optIndex) => (
-                      <li key={optIndex}>
+                      <li key={optIndex} style={{ whiteSpace: 'pre-line' }}>
                         {opt}
                         {q.aiAssignedAnswer === opt && <Badge variant="outline" className="ml-2 bg-green-100 dark:bg-green-800 text-green-700 dark:text-green-200 border-green-500">AI Suggests as Answer</Badge>}
                       </li>
                     ))}
                   </ul>
-                  {q.aiAssignedAnswer === null && <p className="text-sm text-amber-600 dark:text-amber-400 mt-2">AI did not assign a confident answer during extraction.</p>}
+                  {q.aiAssignedAnswer === null && <p className="text-sm text-amber-600 dark:text-amber-400 mt-2">AI did not assign a confident answer.</p>}
                 </AccordionContent>
               </AccordionItem>
             ))}

@@ -1,12 +1,13 @@
 
 "use client";
 
+import type { GenerationMode } from "@/app/page";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileText, BookOpenCheck } from "lucide-react";
+import { FileText, BookOpenCheck, Brain } from "lucide-react";
 
 interface GenerationMethodStepProps {
-  onSelectMethod: (method: 'extract_from_document' | 'generate_from_syllabus') => void;
+  onSelectMethod: (method: GenerationMode) => void;
 }
 
 export function GenerationMethodStep({ onSelectMethod }: GenerationMethodStepProps) {
@@ -25,25 +26,25 @@ export function GenerationMethodStep({ onSelectMethod }: GenerationMethodStepPro
           variant="default"
         >
           <FileText className="h-6 w-6" />
-          Extract Questions from Document
+          Extract from Document
         </Button>
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t" />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-background px-2 text-muted-foreground">
-              Or
-            </span>
-          </div>
-        </div>
+        
         <Button 
           onClick={() => onSelectMethod('generate_from_syllabus')} 
           className="w-full text-lg py-6 flex items-center justify-center gap-3"
           variant="secondary"
         >
           <BookOpenCheck className="h-6 w-6" />
-          Generate Questions from Syllabus
+          Generate from Syllabus
+        </Button>
+
+        <Button 
+          onClick={() => onSelectMethod('generate_from_topic')} 
+          className="w-full text-lg py-6 flex items-center justify-center gap-3"
+          variant="outline"
+        >
+          <Brain className="h-6 w-6" />
+          Generate from Topic(s)
         </Button>
       </CardContent>
     </Card>
