@@ -82,7 +82,7 @@ export function HistoryStep({ history, onViewResult, onTakeNewTest }: HistorySte
                 <CardContent className="flex justify-between items-center pb-4">
                   <div>
                      <p className="text-sm text-muted-foreground">Score</p>
-                     <p className="text-2xl font-bold text-primary">
+                     <p className="text-xl sm:text-2xl font-bold text-primary">
                         {item.scoreSummary.score.toFixed(2)} / {item.scoreSummary.totalQuestions}
                      </p>
                   </div>
