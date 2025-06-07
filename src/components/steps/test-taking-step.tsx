@@ -2,14 +2,15 @@
 "use client";
 
 import type { QuestionType } from "@/types";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { CheckCircle, ChevronLeft, ChevronRight, Circle as UnansweredIcon } from "lucide-react";
+import { CheckCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { cn } from "@/lib/utils";
 
 interface TestTakingStepProps {
   questions: QuestionType[];
@@ -20,36 +21,69 @@ export function TestTakingStep({ questions, onSubmitTest }: TestTakingStepProps)
   const [userAnswers, setUserAnswers] = useState<Record<string, string>>({});
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [progress, setProgress] = useState(0);
+  const [viewedQuestions, setViewedQuestions] = useState<Set<string>>(new Set());
+
+  const currentQuestion = questions[currentQuestionIndex];
 
   useEffect(() => {
     const answeredCount = Object.keys(userAnswers).length;
     setProgress((answeredCount / questions.length) * 100);
   }, [userAnswers, questions.length]);
 
+  useEffect(() => {
+    // Mark the initial question as viewed
+    if (questions.length > 0 && !viewedQuestions.has(questions[0].id)) {
+       setViewedQuestions(prev => new Set(prev).add(questions[0].id));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [questions]); // Only on initial questions load
+
+  useEffect(() => {
+    if (currentQuestion) {
+      setViewedQuestions(prev => {
+        if (!prev.has(currentQuestion.id)) {
+          return new Set(prev).add(currentQuestion.id);
+        }
+        return prev;
+      });
+    }
+  }, [currentQuestion]);
+
   const handleAnswerChange = (questionId: string, selectedOption: string) => {
     setUserAnswers((prev) => ({ ...prev, [questionId]: selectedOption }));
   };
 
-  const currentQuestion = questions[currentQuestionIndex];
+  const navigateToQuestion = useCallback((index: number) => {
+    if (index >= 0 && index < questions.length) {
+      setCurrentQuestionIndex(index);
+      // The useEffect for currentQuestion will handle adding to viewedQuestions
+    }
+  }, [questions.length]);
 
   const goToNextQuestion = () => {
-    if (currentQuestionIndex < questions.length - 1) {
-      setCurrentQuestionIndex(currentQuestionIndex + 1);
-    }
+    navigateToQuestion(currentQuestionIndex + 1);
   };
 
   const goToPreviousQuestion = () => {
-    if (currentQuestionIndex > 0) {
-      setCurrentQuestionIndex(currentQuestionIndex - 1);
-    }
+    navigateToQuestion(currentQuestionIndex - 1);
   };
   
   const handleSubmit = () => {
     onSubmitTest(userAnswers);
   };
 
-  const handleNavigateToQuestion = (index: number) => {
-    setCurrentQuestionIndex(index);
+  const getPaletteButtonClasses = (questionId: string, index: number) => {
+    const isAnswered = userAnswers[questionId] !== undefined;
+    const isViewed = viewedQuestions.has(questionId);
+    const isActive = index === currentQuestionIndex;
+
+    return cn(
+      "h-10 w-10 flex items-center justify-center p-1 text-xs sm:text-sm rounded-md border transition-all focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+      isActive && "ring-2 ring-primary shadow-lg scale-105 z-10",
+      !isAnswered && !isViewed && "bg-card hover:bg-accent/80 text-card-foreground", // Unseen
+      isAnswered && "bg-green-100 dark:bg-green-700/30 border-green-500/70 text-green-700 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-700/40", // Answered (Green)
+      isViewed && !isAnswered && "bg-red-100 dark:bg-red-700/30 border-red-500/70 text-red-700 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-700/40" // Viewed but unanswered (Red)
+    );
   };
 
   return (
@@ -66,57 +100,36 @@ export function TestTakingStep({ questions, onSubmitTest }: TestTakingStepProps)
           </p>
         </div>
       </CardHeader>
-      <CardContent className="min-h-[400px] flex flex-col sm:flex-row gap-6 p-6">
-        {/* Sidebar for Question Navigation */}
-        <div className="w-full sm:w-48 md:w-56 sm:border-r sm:pr-4">
-          <h4 className="text-md font-semibold mb-3 font-headline text-center sm:text-left">Question List</h4>
-          <ScrollArea className="h-[320px] sm:h-[350px]">
-            <div className="space-y-1">
-              {questions.map((q, index) => {
-                const isAnswered = userAnswers[q.id] !== undefined;
-                const isActive = index === currentQuestionIndex;
-                return (
-                  <Button
-                    key={q.id}
-                    variant={isActive ? "secondary" : "ghost"}
-                    className={`w-full justify-start text-left h-auto py-2 px-3 ${isActive ? 'font-semibold ring-2 ring-primary' : ''}`}
-                    onClick={() => handleNavigateToQuestion(index)}
-                  >
-                    {isAnswered ? (
-                      <CheckCircle className="mr-2 h-4 w-4 text-green-500 shrink-0" />
-                    ) : (
-                      <UnansweredIcon className="mr-2 h-4 w-4 text-muted-foreground shrink-0" />
-                    )}
-                    <span className="truncate">Q {index + 1}</span>
-                  </Button>
-                );
-              })}
-            </div>
-          </ScrollArea>
-        </div>
-
+      <CardContent className="min-h-[450px] flex flex-col md:flex-row gap-6 p-4 sm:p-6">
         {/* Main Question Area */}
-        <div className="flex-1 mt-4 sm:mt-0 sm:pl-4">
+        <div className="flex-1 order-2 md:order-1">
           {currentQuestion && (
-            <div key={currentQuestion.id} className="space-y-6">
-              <h3 className="text-xl font-semibold font-headline">
-                Question {currentQuestionIndex + 1} of {questions.length}
-              </h3>
-              <p className="text-lg leading-relaxed">{currentQuestion.questionText}</p>
-              <RadioGroup
-                onValueChange={(value) => handleAnswerChange(currentQuestion.id, value)}
-                value={userAnswers[currentQuestion.id]}
-                className="space-y-3"
-              >
-                {currentQuestion.options.map((option, optIndex) => (
-                  <div key={optIndex} className="flex items-center space-x-3 p-3 border rounded-md hover:bg-accent/50 transition-colors cursor-pointer has-[input:checked]:bg-primary/10 has-[input:checked]:border-primary">
-                    <RadioGroupItem value={option} id={`${currentQuestion.id}-option-${optIndex}`} />
-                    <Label htmlFor={`${currentQuestion.id}-option-${optIndex}`} className="text-base cursor-pointer flex-1">
-                      {option}
-                    </Label>
-                  </div>
-                ))}
-              </RadioGroup>
+            <div key={currentQuestion.id} className="space-y-6 h-full flex flex-col">
+              <div>
+                <h3 className="text-xl font-semibold font-headline">
+                  Question {currentQuestionIndex + 1} of {questions.length}
+                </h3>
+                <p className="text-lg leading-relaxed mt-2">{currentQuestion.questionText}</p>
+              </div>
+              <ScrollArea className="flex-grow pr-2">
+                <RadioGroup
+                  onValueChange={(value) => handleAnswerChange(currentQuestion.id, value)}
+                  value={userAnswers[currentQuestion.id]}
+                  className="space-y-3"
+                >
+                  {currentQuestion.options.map((option, optIndex) => (
+                    <div 
+                      key={optIndex} 
+                      className="flex items-center space-x-3 p-3 border rounded-md hover:bg-accent/50 transition-colors cursor-pointer has-[input:checked]:bg-primary/10 has-[input:checked]:border-primary"
+                    >
+                      <RadioGroupItem value={option} id={`${currentQuestion.id}-option-${optIndex}`} />
+                      <Label htmlFor={`${currentQuestion.id}-option-${optIndex}`} className="text-base cursor-pointer flex-1">
+                        {option}
+                      </Label>
+                    </div>
+                  ))}
+                </RadioGroup>
+              </ScrollArea>
             </div>
           )}
            {!currentQuestion && questions.length > 0 && (
@@ -125,6 +138,25 @@ export function TestTakingStep({ questions, onSubmitTest }: TestTakingStepProps)
            {questions.length === 0 && (
               <p className="text-center text-muted-foreground">No questions available for this test.</p>
            )}
+        </div>
+
+        {/* Question Palette Area */}
+        <div className="w-full md:w-[15rem] lg:w-[18rem] order-1 md:order-2 md:border-l md:pl-4 lg:pl-6 flex flex-col">
+          <h4 className="text-md font-semibold mb-3 font-headline text-center">Question Palette</h4>
+          <ScrollArea className="flex-grow mt-1 pr-1 min-h-[150px] md:min-h-0">
+            <div className="grid grid-cols-5 gap-2">
+              {questions.map((q, index) => (
+                <Button
+                  key={q.id}
+                  onClick={() => navigateToQuestion(index)}
+                  className={getPaletteButtonClasses(q.id, index)}
+                  title={`Go to Question ${index + 1}`}
+                >
+                  {index + 1}
+                </Button>
+              ))}
+            </div>
+          </ScrollArea>
         </div>
       </CardContent>
       <CardFooter className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-6">
@@ -144,4 +176,3 @@ export function TestTakingStep({ questions, onSubmitTest }: TestTakingStepProps)
     </Card>
   );
 }
-
