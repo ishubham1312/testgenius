@@ -1,3 +1,4 @@
+
 export interface QuestionType {
   id: string; 
   questionText: string;
@@ -20,4 +21,9 @@ export interface ScoreSummary {
   score: number;
   totalQuestions: number;
   results: TestResultItem[];
+}
+
+export interface TestConfiguration {
+  timerMinutes: number | null;
+  negativeMarkingEnabled: boolean;
 }

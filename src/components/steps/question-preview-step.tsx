@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { QuestionType } from "@/types";
@@ -6,14 +7,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { ListChecks, PlayCircle } from "lucide-react";
+import { ListChecks, Settings2 } from "lucide-react";
 
 interface QuestionPreviewStepProps {
   questions: QuestionType[];
-  onStartTest: () => void;
+  onProceedToConfiguration: () => void;
 }
 
-export function QuestionPreviewStep({ questions, onStartTest }: QuestionPreviewStepProps) {
+export function QuestionPreviewStep({ questions, onProceedToConfiguration }: QuestionPreviewStepProps) {
   if (!questions || questions.length === 0) {
     return (
       <Card className="w-full max-w-2xl shadow-xl">
@@ -60,9 +61,9 @@ export function QuestionPreviewStep({ questions, onStartTest }: QuestionPreviewS
         </ScrollArea>
       </CardContent>
       <CardFooter>
-        <Button onClick={onStartTest} className="w-full text-lg py-6">
-          <PlayCircle className="mr-2 h-5 w-5" />
-          Start Test
+        <Button onClick={onProceedToConfiguration} className="w-full text-lg py-6">
+          <Settings2 className="mr-2 h-5 w-5" />
+          Configure & Start Test
         </Button>
       </CardFooter>
     </Card>

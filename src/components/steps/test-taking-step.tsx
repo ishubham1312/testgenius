@@ -1,42 +1,78 @@
 
 "use client";
 
-import type { QuestionType } from "@/types";
+import type { QuestionType, TestConfiguration } from "@/types";
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { CheckCircle, ChevronLeft, ChevronRight, LayoutPanelLeft } from "lucide-react";
+import { CheckCircle, ChevronLeft, ChevronRight, LayoutPanelLeft, TimerIcon } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetFooter } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+
 
 interface TestTakingStepProps {
   questions: QuestionType[];
+  testConfiguration: TestConfiguration;
   onSubmitTest: (answers: Record<string, string>) => void;
 }
 
-export function TestTakingStep({ questions, onSubmitTest }: TestTakingStepProps) {
+export function TestTakingStep({ questions, testConfiguration, onSubmitTest }: TestTakingStepProps) {
   const [userAnswers, setUserAnswers] = useState<Record<string, string>>({});
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [progress, setProgress] = useState(0);
+  const [progressValue, setProgressValue] = useState(0); // Renamed to avoid conflict with Progress component
   const [viewedQuestions, setViewedQuestions] = useState<Set<string>>(new Set());
   const [isMobilePaletteOpen, setIsMobilePaletteOpen] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState<number | null>(
+    testConfiguration.timerMinutes ? testConfiguration.timerMinutes * 60 : null
+  );
+  const [showTimeUpDialog, setShowTimeUpDialog] = useState(false);
 
   const currentQuestion = questions[currentQuestionIndex];
+  const canSubmitTest = questions.length > 0;
+
+  const handleSubmit = useCallback(() => {
+    setIsMobilePaletteOpen(false); 
+    onSubmitTest(userAnswers);
+  }, [onSubmitTest, userAnswers]);
+
+
+  useEffect(() => {
+    if (timeRemaining === null) return;
+
+    if (timeRemaining <= 0) {
+      setShowTimeUpDialog(true);
+      // Auto-submit handled by dialog action
+      return;
+    }
+
+    const timerId = setInterval(() => {
+      setTimeRemaining((prevTime) => (prevTime !== null ? prevTime - 1 : null));
+    }, 1000);
+
+    return () => clearInterval(timerId);
+  }, [timeRemaining, handleSubmit]);
+  
+  const handleTimeUpSubmit = () => {
+    setShowTimeUpDialog(false);
+    handleSubmit();
+  };
+
 
   useEffect(() => {
     const answeredCount = Object.keys(userAnswers).length;
-    setProgress(questions.length > 0 ? (answeredCount / questions.length) * 100 : 0);
+    setProgressValue(questions.length > 0 ? (answeredCount / questions.length) * 100 : 0);
   }, [userAnswers, questions.length]);
 
   useEffect(() => {
     if (questions.length > 0 && questions[0]) {
        setViewedQuestions(prev => new Set(prev).add(questions[0].id));
     } else if (questions.length === 0) {
-      setViewedQuestions(new Set()); // Clear if no questions
+      setViewedQuestions(new Set()); 
     }
   }, [questions]);
 
@@ -70,10 +106,13 @@ export function TestTakingStep({ questions, onSubmitTest }: TestTakingStepProps)
     navigateToQuestion(currentQuestionIndex - 1);
   };
   
-  const handleSubmit = () => {
-    onSubmitTest(userAnswers);
-    setIsMobilePaletteOpen(false); // Close palette on submit
+  const formatTime = (totalSeconds: number | null): string => {
+    if (totalSeconds === null) return "No timer";
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
   };
+
 
   const getPaletteButtonClasses = (questionId: string, index: number) => {
     const isAnswered = userAnswers[questionId] !== undefined;
@@ -106,17 +145,29 @@ export function TestTakingStep({ questions, onSubmitTest }: TestTakingStepProps)
     </div>
   );
 
-  const canSubmitTest = questions.length > 0;
 
   return (
+    <>
     <Card className="w-full max-w-4xl shadow-xl">
       <CardHeader>
-        <CardTitle className="font-headline text-3xl text-center">Mock Test</CardTitle>
+        <div className="flex justify-between items-center">
+          <CardTitle className="font-headline text-3xl text-center">Mock Test</CardTitle>
+          {timeRemaining !== null && (
+            <div className={cn(
+              "flex items-center gap-2 p-2 rounded-md text-lg font-semibold",
+              timeRemaining <= 60 && timeRemaining > 0 ? "text-red-500 animate-pulse" : "text-foreground"
+              )}>
+              <TimerIcon className="h-6 w-6" />
+              <span>{formatTime(timeRemaining)}</span>
+            </div>
+          )}
+        </div>
         <CardDescription className="text-center">
           Answer the questions to the best of your ability.
+          {testConfiguration.negativeMarkingEnabled && <span className="block text-destructive text-sm font-medium mt-1">Negative marking is enabled for this test.</span>}
         </CardDescription>
         <div className="pt-2">
-          <Progress value={progress} className="w-full" />
+          <Progress value={progressValue} className="w-full" />
           <p className="text-sm text-muted-foreground text-center mt-1">
             {Object.keys(userAnswers).length} / {questions.length} questions answered
           </p>
@@ -161,7 +212,6 @@ export function TestTakingStep({ questions, onSubmitTest }: TestTakingStepProps)
            )}
         </div>
 
-        {/* Desktop/Tablet Palette */}
         <div className="hidden md:flex md:flex-shrink-0 md:w-[16rem] order-1 md:order-2 md:border-l md:pl-4 flex-col">
           <h4 className="text-md font-semibold mb-3 font-headline text-center">Question Palette</h4>
           <ScrollArea className="flex-grow mt-1 pr-1 min-h-[150px] md:min-h-0">
@@ -170,7 +220,6 @@ export function TestTakingStep({ questions, onSubmitTest }: TestTakingStepProps)
         </div>
       </CardContent>
       <CardFooter className="flex flex-col items-center gap-4 pt-6">
-        {/* Mobile Palette Trigger */}
         <div className="md:hidden w-full flex justify-center mb-2 sm:mb-0">
           <Sheet open={isMobilePaletteOpen} onOpenChange={setIsMobilePaletteOpen}>
             <SheetTrigger asChild>
@@ -215,5 +264,19 @@ export function TestTakingStep({ questions, onSubmitTest }: TestTakingStepProps)
         </div>
       </CardFooter>
     </Card>
+    <AlertDialog open={showTimeUpDialog} onOpenChange={setShowTimeUpDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Time's Up!</AlertDialogTitle>
+            <AlertDialogDescription>
+              The allocated time for this test has expired. Your test will now be submitted with the answers you've provided.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={handleTimeUpSubmit}>OK, Submit My Test</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

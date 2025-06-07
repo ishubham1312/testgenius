@@ -1,11 +1,12 @@
 
 "use client";
 
-import type { QuestionType, ScoreSummary, TestResultItem } from "@/types";
+import type { QuestionType, ScoreSummary, TestResultItem, TestConfiguration } from "@/types";
 import { useState, useCallback, useEffect } from "react";
 import { Header } from "@/components/layout/header";
 import { FileUploadStep } from "@/components/steps/file-upload-step";
 import { QuestionPreviewStep } from "@/components/steps/question-preview-step";
+import { TestConfigurationStep } from "@/components/steps/test-configuration-step";
 import { TestTakingStep } from "@/components/steps/test-taking-step";
 import { ScoringOptionsStep } from "@/components/steps/scoring-options-step";
 import { ResultsStep } from "@/components/steps/results-step";
@@ -23,11 +24,12 @@ import { AlertTriangle } from "lucide-react";
 
 type AppStep = 
   | 'generation_method_selection'
-  | 'upload_document' // Renamed from 'upload' for clarity
+  | 'upload_document' 
   | 'syllabus_upload'
   | 'syllabus_options'
   | 'language_selection'
   | 'previewing_questions'
+  | 'test_configuration' // New step
   | 'taking_test'
   | 'awaiting_scoring_choice'
   | 'results';
@@ -43,6 +45,10 @@ export default function TestGeniusPage() {
   const [questions, setQuestions] = useState<QuestionType[]>([]);
   const [userTestAnswers, setUserTestAnswers] = useState<Record<string, string>>({});
   const [scoreDetails, setScoreDetails] = useState<ScoreSummary | null>(null);
+  const [testConfiguration, setTestConfiguration] = useState<TestConfiguration>({
+    timerMinutes: null,
+    negativeMarkingEnabled: false,
+  });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
@@ -56,6 +62,7 @@ export default function TestGeniusPage() {
     setQuestions([]);
     setUserTestAnswers({});
     setScoreDetails(null);
+    setTestConfiguration({ timerMinutes: null, negativeMarkingEnabled: false });
     setIsLoading(false);
     setError(null);
   }, []);
@@ -132,7 +139,6 @@ export default function TestGeniusPage() {
         syllabusText,
         numQuestions: options.numQuestions,
         difficultyLevel: options.difficultyLevel,
-        // preferredLanguage: options.preferredLanguage // Assuming preferredLanguage is part of SyllabusGenerationOptions if needed
       };
       const aiResult = await generateQuestionsFromSyllabus(input);
 
@@ -142,8 +148,6 @@ export default function TestGeniusPage() {
       }
       
       if (aiResult.requiresLanguageChoice) {
-         // If AI needs language choice even for generation, go to language selection.
-         // This might happen if syllabus is very mixed and no preferred lang was set in options.
         setCurrentStep('language_selection');
       } else {
         processAIQuestionsOutput(aiResult);
@@ -217,10 +221,17 @@ export default function TestGeniusPage() {
     setError(null);
   };
 
-  const handleStartTest = useCallback(() => {
-    setCurrentStep('taking_test');
+  const handleProceedToConfiguration = useCallback(() => {
+    setCurrentStep('test_configuration');
     setError(null);
   }, [setCurrentStep, setError]);
+
+  const handleTestConfigurationSubmit = useCallback((config: TestConfiguration) => {
+    setTestConfiguration(config);
+    setCurrentStep('taking_test');
+    setError(null);
+  }, [setTestConfiguration, setCurrentStep, setError]);
+
 
   const handleSubmitTest = useCallback((answers: Record<string, string>) => {
     setUserTestAnswers(answers);
@@ -240,6 +251,9 @@ export default function TestGeniusPage() {
           userAnswer: userTestAnswers[q.id] || null,
         } as AIScoreQuestion)),
       };
+      // TODO: If testConfiguration.negativeMarkingEnabled is true,
+      // the prompt for scoreTestWithAI might need to be adjusted or client-side score adjustment needed.
+      // For now, it scores normally.
       const aiScoreResult = await scoreTestWithAI(aiScoreInput);
       
       const updatedQuestions = questions.map((q) => {
@@ -272,7 +286,7 @@ export default function TestGeniusPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [questions, userTestAnswers, toast, setIsLoading, setError, setQuestions, setScoreDetails, setCurrentStep]);
+  }, [questions, userTestAnswers, toast, setIsLoading, setError, setQuestions, setScoreDetails, setCurrentStep, testConfiguration]);
 
   const handleUploadKeyAndScore = useCallback((keyAnswers: string[]) => {
     setIsLoading(true);
@@ -291,6 +305,7 @@ export default function TestGeniusPage() {
       const correctAnswer = keyAnswers[index];
       const userAnswer = userTestAnswers[q.id] || null;
       const isCorrect = userAnswer === correctAnswer;
+      // TODO: Adjust score based on testConfiguration.negativeMarkingEnabled if handling client-side.
       if (isCorrect) score++;
       
       detailedResults.push({
@@ -317,7 +332,7 @@ export default function TestGeniusPage() {
     });
     setCurrentStep('results');
     setIsLoading(false);
-  }, [questions, userTestAnswers, toast, setIsLoading, setError, setQuestions, setScoreDetails, setCurrentStep]);
+  }, [questions, userTestAnswers, toast, setIsLoading, setError, setQuestions, setScoreDetails, setCurrentStep, testConfiguration]);
 
 
   const renderStepContent = () => {
@@ -336,7 +351,6 @@ export default function TestGeniusPage() {
 
     const commonErrorSteps: AppStep[] = ['upload_document', 'syllabus_upload', 'syllabus_options', 'language_selection', 'previewing_questions', 'awaiting_scoring_choice'];
     if (error && commonErrorSteps.includes(currentStep) ) {
-      // Handle specific error messages for question extraction/generation failure
       if (currentStep === 'previewing_questions' && questions.length === 0) {
         return (
           <Alert variant="destructive" className="w-full max-w-xl mx-auto">
@@ -346,8 +360,7 @@ export default function TestGeniusPage() {
           </Alert>
         );
       }
-      // Generic error display for other applicable steps
-      if (currentStep !== 'previewing_questions') { // Avoid double display for previewing if questions are empty
+      if (currentStep !== 'previewing_questions') { 
          return (
             <Alert variant="destructive" className="w-full max-w-xl mx-auto">
             <AlertTriangle className="h-4 w-4" />
@@ -370,9 +383,11 @@ export default function TestGeniusPage() {
       case 'language_selection':
         return <LanguageSelectionStep onSelectLanguage={handleLanguageSelected} />;
       case 'previewing_questions':
-        return <QuestionPreviewStep questions={questions} onStartTest={handleStartTest} />;
+        return <QuestionPreviewStep questions={questions} onProceedToConfiguration={handleProceedToConfiguration} />;
+      case 'test_configuration':
+        return <TestConfigurationStep currentConfig={testConfiguration} onSubmit={handleTestConfigurationSubmit} />;
       case 'taking_test':
-        return <TestTakingStep questions={questions} onSubmitTest={handleSubmitTest} />;
+        return <TestTakingStep questions={questions} testConfiguration={testConfiguration} onSubmitTest={handleSubmitTest} />;
       case 'awaiting_scoring_choice':
         return <ScoringOptionsStep onScoreWithAI={handleScoreWithAI} onUploadKeyAndScore={handleUploadKeyAndScore} setIsLoadingGlobally={setIsLoading} />;
       case 'results':
@@ -386,7 +401,7 @@ export default function TestGeniusPage() {
             );
         }
         if (!scoreDetails) return <p>Error: Score details not available.</p>;
-        return <ResultsStep scoreSummary={scoreDetails} onRetakeTest={resetState} />;
+        return <ResultsStep scoreSummary={scoreDetails} onRetakeTest={resetState} testConfiguration={testConfiguration} />;
       default:
         const exhaustiveCheck: never = currentStep;
         return <p>Unknown step: {exhaustiveCheck}</p>;

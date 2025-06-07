@@ -1,19 +1,21 @@
+
 "use client";
 
-import type { ScoreSummary, QuestionType } from "@/types";
+import type { ScoreSummary, QuestionType, TestConfiguration } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { CheckCircle, XCircle, HelpCircle, RotateCcw } from "lucide-react";
+import { CheckCircle, XCircle, HelpCircle, RotateCcw, Timer, AlertCircle } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 
 interface ResultsStepProps {
   scoreSummary: ScoreSummary;
+  testConfiguration: TestConfiguration;
   onRetakeTest: () => void;
 }
 
-export function ResultsStep({ scoreSummary, onRetakeTest }: ResultsStepProps) {
+export function ResultsStep({ scoreSummary, testConfiguration, onRetakeTest }: ResultsStepProps) {
   const { score, totalQuestions, results } = scoreSummary;
   const percentage = totalQuestions > 0 ? (score / totalQuestions) * 100 : 0;
 
@@ -33,6 +35,20 @@ export function ResultsStep({ scoreSummary, onRetakeTest }: ResultsStepProps) {
         <div className="w-full max-w-md pt-4">
            <Progress value={percentage} className="h-4" />
            <p className="text-center text-2xl font-semibold mt-2 text-primary">{percentage.toFixed(1)}%</p>
+        </div>
+         <div className="mt-4 flex flex-col sm:flex-row gap-2 sm:gap-4 text-sm text-muted-foreground">
+            {testConfiguration.timerMinutes && (
+                <div className="flex items-center gap-1">
+                    <Timer className="h-4 w-4" />
+                    <span>Timer: {testConfiguration.timerMinutes} min</span>
+                </div>
+            )}
+            {testConfiguration.negativeMarkingEnabled && (
+                <div className="flex items-center gap-1 text-destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <span>Negative Marking was ON</span>
+                </div>
+            )}
         </div>
       </CardHeader>
       <CardContent>
