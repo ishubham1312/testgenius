@@ -76,8 +76,6 @@ export default function TestGeniusPage() {
     setError(null);
   }, []);
 
-  // Helper function for consistent error handling during AI calls
-  // Define this early as other callbacks might use it.
   const handleGenerationError = useCallback((e: unknown, mode: 'document' | 'syllabus' | 'topic' | 'language') => {
     console.error(`AI error (${mode}):`, e);
     let errorMessage = `Failed to process with AI: ${(e as Error).message}`;
@@ -113,7 +111,10 @@ export default function TestGeniusPage() {
       id: crypto.randomUUID(),
       questionText: q.question,
       options: q.options,
-      aiAssignedAnswer: q.answer,
+      aiAssignedAnswer: q.answer, // This answer is from the AI (extraction or generation)
+      questionType: q.questionType,
+      listI: q.listI,
+      listII: q.listII,
     }));
     setQuestions(formattedQuestions);
     setCurrentStep('previewing_questions');
@@ -182,7 +183,7 @@ export default function TestGeniusPage() {
     } catch (e) {
       handleGenerationError(e, 'syllabus');
     }
-  }, [syllabusText, processAIQuestionsOutput, setCurrentStep, setError, setIsLoading, setSyllabusOptions, generationMode, handleGenerationError]);
+  }, [syllabusText, processAIQuestionsOutput, setCurrentStep, setError, setIsLoading, setSyllabusOptions, handleGenerationError]);
 
   const handleTopicInputSubmit = useCallback((topic: string) => {
     setTopicForGeneration(topic);
@@ -201,7 +202,6 @@ export default function TestGeniusPage() {
     setIsLoading(true);
     setCurrentStep('generating_from_topic'); 
     try {
-      // Reusing syllabus flow for topic generation: topicForGeneration acts as syllabusText
       const input: GenerateQuestionsFromSyllabusInput = { 
         syllabusText: topicForGeneration, 
         numQuestions: options.numQuestions,
@@ -237,7 +237,7 @@ export default function TestGeniusPage() {
       } else if (generationMode === 'generate_from_topic') {
          if (!topicForGeneration || !topicOptions) throw new Error("Topic or options not found.");
          currentOptions = topicOptions;
-        aiResult = await generateQuestionsFromSyllabus({ // Reusing syllabus flow
+        aiResult = await generateQuestionsFromSyllabus({ 
           syllabusText: topicForGeneration, 
           numQuestions: currentOptions.numQuestions,
           difficultyLevel: currentOptions.difficultyLevel,
@@ -287,13 +287,6 @@ export default function TestGeniusPage() {
     setError(null);
   }, [setTestConfiguration, setCurrentStep, setError]);
 
-
-  const handleSubmitTest = useCallback((answers: Record<string, string>) => {
-    setUserTestAnswers(answers);
-    setCurrentStep('awaiting_scoring_choice');
-    setError(null);
-  }, [setUserTestAnswers, setCurrentStep, setError]);
-
   const handleScoreWithAI = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -302,8 +295,11 @@ export default function TestGeniusPage() {
         questions: questions.map(q => ({
           question: q.questionText,
           options: q.options,
-          answer: q.aiAssignedAnswer || null,
+          answer: q.aiAssignedAnswer || null, // This is the AI's original answer from extraction/generation
           userAnswer: userTestAnswers[q.id] || null,
+          questionType: q.questionType || 'mcq',
+          listI: q.listI || null,
+          listII: q.listII || null,
         } as AIScoreQuestion)),
       };
       
@@ -314,7 +310,7 @@ export default function TestGeniusPage() {
         return {
           ...q,
           userSelectedAnswer: userTestAnswers[q.id] || null,
-          actualCorrectAnswer: resultItem?.correctAnswer || "N/A",
+          actualCorrectAnswer: resultItem?.correctAnswer || "N/A", // This is the AI-verified/determined correct answer
           isCorrect: resultItem?.isCorrect || false,
         };
       });
@@ -336,10 +332,22 @@ export default function TestGeniusPage() {
       console.error("AI scoring error:", e);
       setError(`Failed to score test using AI: ${(e as Error).message}`);
       toast({ title: "AI Scoring Error", description: (e as Error).message, variant: "destructive" });
+      // If scoring fails, user should ideally be able to retry or go back.
+      // For now, just show error. Might need a specific error step or allow re-entry to scoring choice.
     } finally {
       setIsLoading(false);
     }
   }, [questions, userTestAnswers, toast, setIsLoading, setError, setQuestions, setScoreDetails, setCurrentStep]);
+
+  const handleSubmitTest = useCallback((answers: Record<string, string>) => {
+    setUserTestAnswers(answers);
+    if (generationMode === 'generate_from_syllabus' || generationMode === 'generate_from_topic') {
+      handleScoreWithAI(); 
+    } else {
+      setCurrentStep('awaiting_scoring_choice');
+    }
+    setError(null);
+  }, [setUserTestAnswers, setCurrentStep, setError, generationMode, handleScoreWithAI]);
 
   const handleUploadKeyAndScore = useCallback((keyAnswers: string[]) => {
     setIsLoading(true);
@@ -403,7 +411,7 @@ export default function TestGeniusPage() {
                  ((generationMode === 'generate_from_syllabus' || generationMode === 'generate_from_topic') && (currentStep === 'syllabus_options' || currentStep === 'topic_options') && (syllabusText || topicForGeneration) )
       ) {
          message = (generationMode === 'generate_from_syllabus' || generationMode === 'generate_from_topic') ? "Generating questions with AI..." : "Extracting questions with AI...";
-      } else if (currentStep === 'awaiting_scoring_choice' ) { 
+      } else if (currentStep === 'awaiting_scoring_choice' || (generationMode === 'generate_from_syllabus' || generationMode === 'generate_from_topic') && currentStep !== 'results' ) { 
         message = "Scoring test with AI...";
       }
       return <LoadingSpinner message={message} />;
@@ -456,6 +464,8 @@ export default function TestGeniusPage() {
       case 'taking_test':
         return <TestTakingStep questions={questions} testConfiguration={testConfiguration} onSubmitTest={handleSubmitTest} />;
       case 'awaiting_scoring_choice':
+         // This step should ideally not be reached if generationMode is syllabus/topic,
+         // but as a fallback or for extract_from_document mode:
         return <ScoringOptionsStep onScoreWithAI={handleScoreWithAI} onUploadKeyAndScore={handleUploadKeyAndScore} setIsLoadingGlobally={setIsLoading} />;
       case 'generating_from_topic':
          return <LoadingSpinner message="Generating questions with AI..." />;
@@ -489,3 +499,4 @@ export default function TestGeniusPage() {
     </div>
   );
 }
+
