@@ -1,7 +1,7 @@
 
 "use client";
 
-import type { QuestionType, ScoreSummary, TestResultItem, TestConfiguration } from "@/types";
+import type { QuestionType, ScoreSummary, TestResultItem, TestConfiguration, TestHistoryEntry } from "@/types";
 import { useState, useCallback, useEffect } from "react";
 import { Header } from "@/components/layout/header";
 import { FileUploadStep } from "@/components/steps/file-upload-step";
@@ -39,6 +39,8 @@ type AppStep =
   | 'awaiting_scoring_choice'
   | 'results';
 
+const HISTORY_STORAGE_KEY = "testGeniusHistory";
+
 export default function TestGeniusPage() {
   const [currentStep, setCurrentStep] = useState<AppStep>('generation_method_selection');
   const [generationMode, setGenerationMode] = useState<'extract_from_document' | 'generate_from_syllabus' | 'generate_from_topic' | null>(null);
@@ -50,6 +52,9 @@ export default function TestGeniusPage() {
   const [topicForGeneration, setTopicForGeneration] = useState<string | null>(null);
 
   const [questions, setQuestions] = useState<QuestionType[]>([]);
+  const [currentTestInitialQuestions, setCurrentTestInitialQuestions] = useState<QuestionType[]>([]); // For history
+  const [sourceIdentifier, setSourceIdentifier] = useState<string | null>(null); // For history
+
   const [userTestAnswers, setUserTestAnswers] = useState<Record<string, string>>({});
   const [scoreDetails, setScoreDetails] = useState<ScoreSummary | null>(null);
   const [testConfiguration, setTestConfiguration] = useState<TestConfiguration>({
@@ -69,6 +74,8 @@ export default function TestGeniusPage() {
     setTopicOptions(null);
     setTopicForGeneration(null);
     setQuestions([]);
+    setCurrentTestInitialQuestions([]);
+    setSourceIdentifier(null);
     setUserTestAnswers({});
     setScoreDetails(null);
     setTestConfiguration({ timerMinutes: null, negativeMarkingValue: null });
@@ -78,19 +85,19 @@ export default function TestGeniusPage() {
 
   const handleGenerationError = useCallback((e: unknown, mode: 'document' | 'syllabus' | 'topic' | 'language') => {
     console.error(`AI error (${mode}):`, e);
-    let errorMessage = `Failed to process with AI: ${(e as Error).message}`;
+    let errorMessage = `Failed to process with AI: ${(e as Error).message || 'Unknown error'}`;
     let toastTitle = "AI Processing Error";
 
     if (mode === 'document') toastTitle = "AI Extraction Error";
     if (mode === 'syllabus' || mode === 'topic') toastTitle = "AI Generation Error";
-    if (mode === 'language') errorMessage = `Failed to process with selected language: ${(e as Error).message}`;
+    if (mode === 'language') errorMessage = `Failed to process with selected language: ${(e as Error).message || 'Unknown error'}`;
 
     setError(errorMessage);
-    toast({ title: toastTitle, description: (e as Error).message, variant: "destructive" });
+    toast({ title: toastTitle, description: (e as Error).message || 'An unknown error occurred during AI processing.', variant: "destructive" });
     setIsLoading(false);
   }, [setError, toast, setIsLoading]);
   
-  const processAIQuestionsOutput = useCallback((aiResult: ExtractQuestionsOutput | GenerateQuestionsFromSyllabusOutput) => {
+  const processAIQuestionsOutput = useCallback((aiResult: ExtractQuestionsOutput | GenerateQuestionsFromSyllabusOutput, currentSourceIdentifier: string) => {
     if (!aiResult || typeof aiResult !== 'object' || !aiResult.questions || !Array.isArray(aiResult.questions)) {
       console.error("Invalid aiResult structure in processAIQuestionsOutput:", aiResult);
       setError("Received an unexpected data structure from AI. Cannot process questions.");
@@ -101,6 +108,7 @@ export default function TestGeniusPage() {
     if (aiResult.questions.length === 0) {
       setError("AI could not extract or generate any questions based on the current settings. Please try different options, a different file, or ensure the content has clear multiple-choice questions in the selected language.");
       setQuestions([]);
+      setCurrentTestInitialQuestions([]);
       setCurrentStep('previewing_questions');
       setIsLoading(false);
       return;
@@ -111,18 +119,20 @@ export default function TestGeniusPage() {
       id: crypto.randomUUID(),
       questionText: q.question,
       options: q.options,
-      aiAssignedAnswer: q.answer, // This answer is from the AI (extraction or generation)
-      questionType: q.questionType,
-      listI: q.listI,
-      listII: q.listII,
+      aiAssignedAnswer: q.answer, 
+      questionType: q.questionType || 'mcq',
+      listI: q.listI || null,
+      listII: q.listII || null,
     }));
     setQuestions(formattedQuestions);
+    setCurrentTestInitialQuestions(formattedQuestions); // Save for history
+    setSourceIdentifier(currentSourceIdentifier); // Save for history
     setCurrentStep('previewing_questions');
     setIsLoading(false);
-  }, [setQuestions, setCurrentStep, setError, setIsLoading]);
+  }, [setQuestions, setCurrentTestInitialQuestions, setSourceIdentifier, setCurrentStep, setError, setIsLoading]);
 
 
-  const handleDocumentFileProcessed = useCallback(async (text: string) => {
+  const handleDocumentFileProcessed = useCallback(async (text: string, fileName: string) => {
     setExtractedDocumentText(text);
     setError(null);
     setIsLoading(true);
@@ -135,25 +145,29 @@ export default function TestGeniusPage() {
       }
 
       if (initialAiResult.requiresLanguageChoice) {
+        setSourceIdentifier(`File: ${fileName}`); // Set source identifier early for language selection
+        setCurrentTestInitialQuestions([]); // Clear previous initial questions
         setCurrentStep('language_selection');
         setIsLoading(false);
       } else {
-        processAIQuestionsOutput(initialAiResult);
+        processAIQuestionsOutput(initialAiResult, `File: ${fileName}`);
       }
     } catch (e) {
       handleGenerationError(e, 'document');
     } 
-  }, [processAIQuestionsOutput, setExtractedDocumentText, setCurrentStep, setError, setIsLoading, handleGenerationError]);
+  }, [processAIQuestionsOutput, setExtractedDocumentText, setCurrentStep, setError, setIsLoading, handleGenerationError, setSourceIdentifier, setCurrentTestInitialQuestions]);
 
-  const handleSyllabusFileProcessed = useCallback((text: string) => {
+  const handleSyllabusFileProcessed = useCallback((text: string, fileName: string) => {
     setSyllabusText(text);
+    setSourceIdentifier(`Syllabus: ${fileName}`); // Set source identifier
+    setCurrentTestInitialQuestions([]); // Clear previous initial questions
     setCurrentStep('syllabus_options');
     setError(null);
-  }, [setSyllabusText, setCurrentStep, setError]);
+  }, [setSyllabusText, setSourceIdentifier, setCurrentTestInitialQuestions, setCurrentStep, setError]);
 
   const handleSyllabusOptionsSubmit = useCallback(async (options: SyllabusGenerationOptions) => {
-    if (!syllabusText) {
-      setError("Syllabus text not found. Please re-upload the syllabus.");
+    if (!syllabusText || !sourceIdentifier) {
+      setError("Syllabus text or identifier not found. Please re-upload the syllabus.");
       setCurrentStep('syllabus_upload');
       return;
     }
@@ -177,23 +191,25 @@ export default function TestGeniusPage() {
         setCurrentStep('language_selection');
         setIsLoading(false);
       } else {
-        processAIQuestionsOutput(aiResult);
+        processAIQuestionsOutput(aiResult, sourceIdentifier);
       }
 
     } catch (e) {
       handleGenerationError(e, 'syllabus');
     }
-  }, [syllabusText, processAIQuestionsOutput, setCurrentStep, setError, setIsLoading, setSyllabusOptions, handleGenerationError]);
+  }, [syllabusText, sourceIdentifier, processAIQuestionsOutput, setCurrentStep, setError, setIsLoading, setSyllabusOptions, handleGenerationError]);
 
   const handleTopicInputSubmit = useCallback((topic: string) => {
     setTopicForGeneration(topic);
+    setSourceIdentifier(`Topic: ${topic.substring(0, 50)}${topic.length > 50 ? '...' : ''}`); // Set source identifier
+    setCurrentTestInitialQuestions([]); // Clear previous initial questions
     setCurrentStep('topic_options');
     setError(null);
-  }, [setTopicForGeneration, setCurrentStep, setError]);
+  }, [setTopicForGeneration, setSourceIdentifier, setCurrentTestInitialQuestions, setCurrentStep, setError]);
 
   const handleTopicOptionsSubmit = useCallback(async (options: TopicGenerationOptions) => {
-    if (!topicForGeneration) {
-      setError("Topic not found. Please re-enter the topic.");
+    if (!topicForGeneration || !sourceIdentifier) {
+      setError("Topic or identifier not found. Please re-enter the topic.");
       setCurrentStep('topic_input');
       return;
     }
@@ -208,16 +224,23 @@ export default function TestGeniusPage() {
         difficultyLevel: options.difficultyLevel,
       };
       const aiResult = await generateQuestionsFromSyllabus(input); 
-      processAIQuestionsOutput(aiResult);
+      processAIQuestionsOutput(aiResult, sourceIdentifier);
     } catch (e) {
       handleGenerationError(e, "topic");
     }
-  }, [topicForGeneration, processAIQuestionsOutput, setIsLoading, setCurrentStep, setError, setTopicOptions, handleGenerationError]);
+  }, [topicForGeneration, sourceIdentifier, processAIQuestionsOutput, setIsLoading, setCurrentStep, setError, setTopicOptions, handleGenerationError]);
 
 
   const handleLanguageSelected = useCallback(async (language: 'en' | 'hi') => {
     setError(null);
     setIsLoading(true);
+    if (!sourceIdentifier) {
+        setError("Source identifier missing. Cannot proceed with language selection.");
+        setIsLoading(false);
+        // Potentially redirect to an earlier step or show a more specific error
+        setCurrentStep('generation_method_selection'); 
+        return;
+    }
     try {
       let aiResult: ExtractQuestionsOutput | GenerateQuestionsFromSyllabusOutput;
       let currentOptions;
@@ -252,16 +275,15 @@ export default function TestGeniusPage() {
         throw new Error("AI service returned an unexpected data format after language selection.");
       }
       
-      processAIQuestionsOutput(aiResult);
+      processAIQuestionsOutput(aiResult, sourceIdentifier);
 
     } catch (e) {
       handleGenerationError(e, 'language');
       if (generationMode === 'extract_from_document') setCurrentStep('upload_document');
       else if (generationMode === 'generate_from_syllabus') setCurrentStep('syllabus_upload');
       else if (generationMode === 'generate_from_topic') setCurrentStep('topic_input');
-
     }
-  }, [extractedDocumentText, syllabusText, syllabusOptions, topicForGeneration, topicOptions, generationMode, processAIQuestionsOutput, setCurrentStep, setError, setIsLoading, handleGenerationError]);
+  }, [extractedDocumentText, syllabusText, syllabusOptions, topicForGeneration, topicOptions, generationMode, sourceIdentifier, processAIQuestionsOutput, setCurrentStep, setError, setIsLoading, handleGenerationError]);
 
 
   const handleGenerationMethodSelect = (method: 'extract_from_document' | 'generate_from_syllabus' | 'generate_from_topic') => {
@@ -287,6 +309,35 @@ export default function TestGeniusPage() {
     setError(null);
   }, [setTestConfiguration, setCurrentStep, setError]);
 
+  const saveTestToHistory = useCallback((currentScoreDetails: ScoreSummary) => {
+    if (!generationMode || !sourceIdentifier || currentTestInitialQuestions.length === 0 || !currentScoreDetails) {
+      console.warn("Skipping save to history: Missing required data.", { generationMode, sourceIdentifier, currentTestInitialQuestions, currentScoreDetails });
+      return;
+    }
+    
+    const newHistoryEntry: TestHistoryEntry = {
+      id: crypto.randomUUID(),
+      timestamp: new Date().getTime(),
+      generationMode,
+      sourceIdentifier,
+      originalQuestions: currentTestInitialQuestions,
+      testConfiguration,
+      scoreSummary: currentScoreDetails,
+    };
+
+    try {
+      const existingHistoryString = localStorage.getItem(HISTORY_STORAGE_KEY);
+      const existingHistory: TestHistoryEntry[] = existingHistoryString ? JSON.parse(existingHistoryString) : [];
+      const updatedHistory = [newHistoryEntry, ...existingHistory].slice(0, 50); // Keep last 50 tests
+      localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(updatedHistory));
+      toast({ title: "Test Saved", description: "Your test results have been saved to history." });
+    } catch (error) {
+      console.error("Failed to save test to history:", error);
+      toast({ title: "History Save Error", description: "Could not save test results to history.", variant: "destructive" });
+    }
+  }, [generationMode, sourceIdentifier, currentTestInitialQuestions, testConfiguration, toast]);
+
+
   const handleScoreWithAI = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -295,7 +346,7 @@ export default function TestGeniusPage() {
         questions: questions.map(q => ({
           question: q.questionText,
           options: q.options,
-          answer: q.aiAssignedAnswer || null, // This is the AI's original answer from extraction/generation
+          answer: q.aiAssignedAnswer || null,
           userAnswer: userTestAnswers[q.id] || null,
           questionType: q.questionType || 'mcq',
           listI: q.listI || null,
@@ -305,45 +356,51 @@ export default function TestGeniusPage() {
       
       const aiScoreResult = await scoreTestWithAI(aiScoreInput);
       
-      const updatedQuestions = questions.map((q) => {
+      const updatedQuestionsWithScore = questions.map((q) => {
         const resultItem = aiScoreResult.results.find(r => r.question === q.questionText);
         return {
           ...q,
           userSelectedAnswer: userTestAnswers[q.id] || null,
-          actualCorrectAnswer: resultItem?.correctAnswer || "N/A", // This is the AI-verified/determined correct answer
+          actualCorrectAnswer: resultItem?.correctAnswer || "N/A", 
           isCorrect: resultItem?.isCorrect || false,
         };
       });
-      setQuestions(updatedQuestions);
+      setQuestions(updatedQuestionsWithScore);
 
-      setScoreDetails({
+      const finalScoreDetails: ScoreSummary = {
         score: aiScoreResult.score,
         totalQuestions: aiScoreResult.totalQuestions,
-        results: aiScoreResult.results.map(r => ({
-          questionText: r.question,
-          userSelectedAnswer: r.userAnswer,
-          actualCorrectAnswer: r.correctAnswer,
-          isCorrect: r.isCorrect,
-          options: questions.find(q => q.questionText === r.question)?.options || [],
-        })),
-      });
+        results: aiScoreResult.results.map(r => {
+            const originalQuestion = questions.find(q => q.questionText === r.question);
+            return {
+                questionText: r.question,
+                userSelectedAnswer: r.userAnswer,
+                actualCorrectAnswer: r.correctAnswer,
+                isCorrect: r.isCorrect,
+                options: originalQuestion?.options || [],
+                questionType: originalQuestion?.questionType,
+                listI: originalQuestion?.listI,
+                listII: originalQuestion?.listII,
+            };
+        }),
+      };
+      setScoreDetails(finalScoreDetails);
+      saveTestToHistory(finalScoreDetails);
       setCurrentStep('results');
     } catch (e) {
       console.error("AI scoring error:", e);
       setError(`Failed to score test using AI: ${(e as Error).message}`);
       toast({ title: "AI Scoring Error", description: (e as Error).message, variant: "destructive" });
-      // If scoring fails, user should ideally be able to retry or go back.
-      // For now, just show error. Might need a specific error step or allow re-entry to scoring choice.
     } finally {
       setIsLoading(false);
     }
-  }, [questions, userTestAnswers, toast, setIsLoading, setError, setQuestions, setScoreDetails, setCurrentStep]);
+  }, [questions, userTestAnswers, toast, setIsLoading, setError, setQuestions, setScoreDetails, setCurrentStep, saveTestToHistory]);
 
   const handleSubmitTest = useCallback((answers: Record<string, string>) => {
     setUserTestAnswers(answers);
     if (generationMode === 'generate_from_syllabus' || generationMode === 'generate_from_topic') {
       handleScoreWithAI(); 
-    } else {
+    } else { // extract_from_document
       setCurrentStep('awaiting_scoring_choice');
     }
     setError(null);
@@ -362,7 +419,7 @@ export default function TestGeniusPage() {
     let score = 0;
     const detailedResults: TestResultItem[] = [];
 
-    const updatedQuestions = questions.map((q, index) => {
+    const updatedQuestionsWithScore = questions.map((q, index) => {
       const correctAnswer = keyAnswers[index];
       const userAnswer = userTestAnswers[q.id] || null;
       const isCorrect = userAnswer === correctAnswer;
@@ -379,6 +436,9 @@ export default function TestGeniusPage() {
         actualCorrectAnswer: correctAnswer,
         isCorrect: isCorrect,
         options: q.options,
+        questionType: q.questionType,
+        listI: q.listI,
+        listII: q.listII,
       });
 
       return {
@@ -389,15 +449,17 @@ export default function TestGeniusPage() {
       };
     });
     
-    setQuestions(updatedQuestions);
-    setScoreDetails({
+    setQuestions(updatedQuestionsWithScore);
+    const finalScoreDetails: ScoreSummary = {
       score: Math.max(0, score), 
       totalQuestions: questions.length,
       results: detailedResults,
-    });
+    };
+    setScoreDetails(finalScoreDetails);
+    saveTestToHistory(finalScoreDetails);
     setCurrentStep('results');
     setIsLoading(false);
-  }, [questions, userTestAnswers, toast, setIsLoading, setError, setQuestions, setScoreDetails, setCurrentStep, testConfiguration]);
+  }, [questions, userTestAnswers, toast, setIsLoading, setError, setQuestions, setScoreDetails, setCurrentStep, testConfiguration, saveTestToHistory]);
 
 
   const renderStepContent = () => {
@@ -411,7 +473,7 @@ export default function TestGeniusPage() {
                  ((generationMode === 'generate_from_syllabus' || generationMode === 'generate_from_topic') && (currentStep === 'syllabus_options' || currentStep === 'topic_options') && (syllabusText || topicForGeneration) )
       ) {
          message = (generationMode === 'generate_from_syllabus' || generationMode === 'generate_from_topic') ? "Generating questions with AI..." : "Extracting questions with AI...";
-      } else if (currentStep === 'awaiting_scoring_choice' || (generationMode === 'generate_from_syllabus' || generationMode === 'generate_from_topic') && currentStep !== 'results' ) { 
+      } else if (currentStep === 'awaiting_scoring_choice' || ((generationMode === 'generate_from_syllabus' || generationMode === 'generate_from_topic') && currentStep !== 'results' && currentStep !== 'taking_test' )) { 
         message = "Scoring test with AI...";
       }
       return <LoadingSpinner message={message} />;
@@ -447,9 +509,9 @@ export default function TestGeniusPage() {
       case 'topic_options':
          return <TopicOptionsStep onSubmitOptions={handleTopicOptionsSubmit} />;
       case 'upload_document':
-        return <FileUploadStep onFileProcessed={handleDocumentFileProcessed} setIsLoadingGlobally={setIsLoading} />;
+        return <FileUploadStep onFileProcessed={(text, fileName) => handleDocumentFileProcessed(text, fileName)} setIsLoadingGlobally={setIsLoading} />;
       case 'syllabus_upload':
-        return <SyllabusUploadStep onFileProcessed={handleSyllabusFileProcessed} setIsLoadingGlobally={setIsLoading} />;
+        return <SyllabusUploadStep onFileProcessed={(text, fileName) => handleSyllabusFileProcessed(text, fileName)} setIsLoadingGlobally={setIsLoading} />;
       case 'syllabus_options':
         return <SyllabusOptionsStep onSubmitOptions={handleSyllabusOptionsSubmit} />;
       case 'language_selection':
@@ -464,8 +526,6 @@ export default function TestGeniusPage() {
       case 'taking_test':
         return <TestTakingStep questions={questions} testConfiguration={testConfiguration} onSubmitTest={handleSubmitTest} />;
       case 'awaiting_scoring_choice':
-         // This step should ideally not be reached if generationMode is syllabus/topic,
-         // but as a fallback or for extract_from_document mode:
         return <ScoringOptionsStep onScoreWithAI={handleScoreWithAI} onUploadKeyAndScore={handleUploadKeyAndScore} setIsLoadingGlobally={setIsLoading} />;
       case 'generating_from_topic':
          return <LoadingSpinner message="Generating questions with AI..." />;
@@ -499,4 +559,3 @@ export default function TestGeniusPage() {
     </div>
   );
 }
-

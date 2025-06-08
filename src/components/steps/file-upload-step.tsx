@@ -12,7 +12,7 @@ import { extractTextFromPdf } from "@/lib/pdf-parser";
 import { UploadCloud, FileText, Loader2 } from "lucide-react";
 
 interface FileUploadStepProps {
-  onFileProcessed: (text: string) => void;
+  onFileProcessed: (text: string, fileName: string) => void;
   setIsLoadingGlobally: (isLoading: boolean) => void;
 }
 
@@ -59,7 +59,7 @@ export function FileUploadStep({ onFileProcessed, setIsLoadingGlobally }: FileUp
       } else if (file.type === "text/plain") {
         textContent = await file.text();
       }
-      onFileProcessed(textContent);
+      onFileProcessed(textContent, file.name);
     } catch (error) {
       console.error("Error processing file:", error);
       toast({
@@ -70,6 +70,7 @@ export function FileUploadStep({ onFileProcessed, setIsLoadingGlobally }: FileUp
        setIsLoadingGlobally(false);
     } finally {
       setIsProcessing(false);
+      // setIsLoadingGlobally(false) will be handled by the parent component after AI processing
     }
   };
 

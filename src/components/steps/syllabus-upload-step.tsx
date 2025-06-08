@@ -12,7 +12,7 @@ import { extractTextFromPdf } from "@/lib/pdf-parser";
 import { BookMarked, FileText, Loader2, ArrowRight } from "lucide-react";
 
 interface SyllabusUploadStepProps {
-  onFileProcessed: (text: string) => void;
+  onFileProcessed: (text: string, fileName: string) => void;
   setIsLoadingGlobally: (isLoading: boolean) => void;
 }
 
@@ -50,7 +50,7 @@ export function SyllabusUploadStep({ onFileProcessed, setIsLoadingGlobally }: Sy
     }
 
     setIsProcessing(true);
-    setIsLoadingGlobally(true); 
+    // setIsLoadingGlobally(true); // Parent will handle this after this step leads to options
 
     try {
       let textContent = "";
@@ -59,7 +59,7 @@ export function SyllabusUploadStep({ onFileProcessed, setIsLoadingGlobally }: Sy
       } else if (file.type === "text/plain") {
         textContent = await file.text();
       }
-      onFileProcessed(textContent);
+      onFileProcessed(textContent, file.name);
     } catch (error) {
       console.error("Error processing syllabus file:", error);
       toast({
@@ -67,9 +67,10 @@ export function SyllabusUploadStep({ onFileProcessed, setIsLoadingGlobally }: Sy
         description: (error as Error).message || "An unexpected error occurred.",
         variant: "destructive",
       });
+       setIsLoadingGlobally(false); // Release global lock on error
     } finally {
       setIsProcessing(false);
-      setIsLoadingGlobally(false); 
+      // setIsLoadingGlobally(false) will be handled by the parent if needed
     }
   };
 
