@@ -2,29 +2,7 @@
 import { ThemeToggle } from "@/components/theme-toggle";
 import { BrainCircuit, History } from "lucide-react";
 import Link from "next/link";
-
-export function Header() {
-  return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Link href="/" className="flex items-center gap-2">
-            <BrainCircuit className="h-7 w-7 text-primary" />
-            <h1 className="text-2xl font-bold font-headline text-primary">TestGenius</h1>
-          </Link>
-        </div>
-        <div className="flex items-center gap-2">
-          <Link href="/history" passHref legacyBehavior>
-            <Button variant="outline" size="icon" aria-label="View test history">
-              <History className="h-5 w-5" />
-            </Button>
-          </Link>
-          <ThemeToggle />
-        </div>
-      </div>
-    </header>
-  );
-}
+import React from 'react'; // Keep React import for forwardRef
 
 // Minimal Button component for Link usage, assuming you might not have one globally available in this exact context
 // If you have a global Button, use that.
@@ -47,5 +25,26 @@ const Button = React.forwardRef<
 });
 Button.displayName = "Button";
 
-// Need React for the forwardRef
-import React from 'react';
+
+export function Header() {
+  return (
+    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="container flex h-16 items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Link href="/" className="flex items-center gap-2">
+            <BrainCircuit className="h-7 w-7 text-primary" />
+            <h1 className="text-2xl font-bold font-headline text-primary">TestGenius</h1>
+          </Link>
+        </div>
+        <div className="flex items-center gap-2">
+          <Link href="/history" aria-label="View test history">
+            <Button variant="outline" size="icon" asChild={false}> {/* Ensure asChild is false or removed if not needed */}
+              <History className="h-5 w-5" />
+            </Button>
+          </Link>
+          <ThemeToggle />
+        </div>
+      </div>
+    </header>
+  );
+}
