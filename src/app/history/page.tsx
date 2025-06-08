@@ -98,9 +98,9 @@ export default function HistoryPage() {
                           </span>
                         </p>
                         <p className="text-sm text-muted-foreground mt-1">
-                          Timer: {entry.testConfiguration.timerMinutes ? `${entry.testConfiguration.timerMinutes} min` : "None"}
-                          {entry.testConfiguration.negativeMarkingValue !== null && 
-                           `, Negative Marking: ${entry.testConfiguration.negativeMarkingValue}`}
+                          Timer: {entry.testConfiguration?.timerMinutes ? `${entry.testConfiguration.timerMinutes} min` : "None"}
+                          {entry.testConfiguration?.negativeMarkingValue !== null && entry.testConfiguration?.negativeMarkingValue !== undefined
+                           ? `, Negative Marking: ${entry.testConfiguration.negativeMarkingValue}` : ""}
                         </p>
                       </CardContent>
                       <CardFooter className="flex justify-end gap-2">
